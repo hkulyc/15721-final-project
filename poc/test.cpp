@@ -6,6 +6,9 @@
 // #include "../libduckdb-osx-universal/duckdb.h"
 #define EPOCH_NUM 1
 
+duckdb::DuckDB db(nullptr);
+duckdb::Connection con2(db);
+
 int64_t random_op(int64_t a){
     return (a+1)/2*1.5;
 }
@@ -16,8 +19,14 @@ int64_t classify(int64_t a){
     else return 2;
 }
 
+std::unique_ptr<duckdb::PreparedStatement> prepare = con2.Prepare("SELECT $1");
 double test(double a){
-    std::cout<<a<<std::endl;
+    // std::cout<<a<<std::endl;
+    std::unique_ptr<duckdb::QueryResult> result = prepare->Execute(12);
+    // auto result = con2.Query("select 1");
+    // result->Print();
+    result->Fetch()->Print();
+    // std::cout<<result->Fetch()->Print()<<std::endl;
     return a;
 }
 
@@ -71,7 +80,6 @@ void print_res(duckdb::MaterializedQueryResult *res){
 
 int main(int argc, char const *argv[])
 {
-    duckdb::DuckDB db(nullptr);
     duckdb::Connection con(db);
     prepare_env(&con);
     auto result1 = con.Query("select test(CO) from lineitem");

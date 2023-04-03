@@ -3,8 +3,8 @@
 #include <stdlib.h>
 
 int main() {
-  // PgQueryPlpgsqlParseResult result;
-  PgQueryParseResult result;
+  PgQueryPlpgsqlParseResult result;
+  // PgQueryParseResult result;
 
 //   result = pg_query_parse_plpgsql(" \
 //   CREATE OR REPLACE FUNCTION cs_fmt_browser_version(v_name varchar, \
@@ -35,20 +35,26 @@ int main() {
   // BEGIN RETURN tmp; END;\
   // $$ LANGUAGE plpgsql;";
   char *sql = "\
-  select (cmkt+2)*3;";
+CREATE FUNCTION retrieve_parents(cid integer) RETURNS text AS $$\
+DECLARE pd text;    \
+BEGIN\
+    pd = 'function';\
+    RETURN concat(cid,pd);\
+END; $$\
+LANGUAGE PLPGSQL";
   // printf("%s", sql);
 
-  // result = pg_query_parse_plpgsql(sql);
-  result = pg_query_parse(sql);
+  result = pg_query_parse_plpgsql(sql);
+  // result = pg_query_parse(sql);
   if (result.error) {
     printf("error: %s at %d\n", result.error->message, result.error->cursorpos);
   } else {
-    // printf("%s\n", result.plpgsql_funcs);
-    printf("%s\n", result.parse_tree);
+    printf("%s\n", result.plpgsql_funcs);
+    // printf("%s\n", result.parse_tree);
   }
 
-  // pg_query_free_plpgsql_parse_result(result);
-  pg_query_free_parse_result(result);
+  pg_query_free_plpgsql_parse_result(result);
+  // pg_query_free_parse_result(result);
 
   // Optional, this ensures all memory is freed upon program exit (useful when running Valgrind)
   pg_query_exit();

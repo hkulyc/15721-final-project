@@ -14,3 +14,6 @@ main
 .DS_Store
 poc/dataset/lineitem.csv
 poc/poc
+udf_transpiler/env/
+test/
+tests/

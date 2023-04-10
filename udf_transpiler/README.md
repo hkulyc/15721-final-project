@@ -1,3 +1,21 @@
 # The REAL Transpiler
-## Install the python parser.
-python3 -m pip install ./pglast
+
+## Developement
+First set up a python virtual environment with
+```
+mkdir env
+python3 -m venv env
+source env/bin/activate
+```
+Next install the transpiler
+```
+pip install -e .
+```
+
+## Usage
+
+To get a list of commands and options:
+
+```
+udftranspiler --help
+```

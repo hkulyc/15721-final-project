@@ -2,16 +2,74 @@
 #include <ctime>
 #include <iostream>
 #include <vector>
-// using namespace duckdb;
+using namespace duckdb;
 // #include "../libduckdb-osx-universal/duckdb.h"
 #define EPOCH_NUM 1
 
 duckdb::DuckDB db(nullptr);
-duckdb::Connection con2(db);
 
+// std::unique_ptr<duckdb::PreparedStatement> prepare = con2.Prepare("SELECT ($1+1)/2*1.5");
+// int64_t random_op(int64_t a){
+//     std::cout<<a<<std::endl;
+//     std::cout<<(a+1)/2*1.5<<std::endl;
+//     prepare->Execute(a)->
+//     return a;
+// }
+
+// auto statement = con2.ExtractStatements("SELECT $1+1");
 int64_t random_op(int64_t a){
-    return (a+1)/2*1.5;
+    duckdb::Connection con2(db);
+    // std::cout<<a<<std::endl;
+    // std::cout<<(a+1)/2*1.5<<std::endl;
+    std::unique_ptr<duckdb::PreparedStatement> prepare = con2.Prepare("SELECT $1+1");
+    auto res = prepare->Execute(a);
+    // auto res = con2.Query(std::format())
+    // res->Print();
+    if(!res->HasError())
+        return res->Fetch()->GetValue(0,0).GetValue<int64_t>();
+    else return 1;
+    // return a;
 }
+
+/*
+* This vectorized function copies the input values to the result vector
+*/
+template<typename TYPE>
+static void udf_vectorized(DataChunk &args, ExpressionState &state, Vector &result) {
+	// set the result vector type
+	result.SetVectorType(VectorType::FLAT_VECTOR);
+	// get a raw array from the result
+	auto result_data = FlatVector::GetData<TYPE>(result);
+
+	// get the solely input vector
+	auto &input = args.data[0];
+	// now get an orrified vector
+	// VectorData vdata;
+    UnifiedVectorFormat vdata;
+	input.ToUnifiedFormat(args.size(), vdata);
+
+	// get a raw array from the orrified input
+	auto input_data = (TYPE *)vdata.data;
+
+    duckdb::Connection con2(db);
+    std::unique_ptr<duckdb::PreparedStatement> prepare = con2.Prepare("SELECT $1+1");
+
+	// handling the data
+	for (idx_t i = 0; i < args.size(); i++) {
+		auto idx = vdata.sel->get_index(i);
+		// if ((*vdata.nullmask)[idx]) {
+		// 	continue;
+		// }
+        TYPE a = input_data[idx];
+        // a = prepare->Execute(a)->Fetch()->GetValue(0,0).template GetValue<TYPE>();
+        // std::cout<<a<<std::endl;
+        auto res = prepare->Execute(a);
+        if(!res->HasError())
+            result_data[i] = res->Fetch()->GetValue(0,0).template GetValue<int64_t>();
+        else result_data[i] = a;
+	}
+}
+
 
 int64_t classify(int64_t a){
     if(a <= 2000) return 0;
@@ -19,16 +77,16 @@ int64_t classify(int64_t a){
     else return 2;
 }
 
-std::unique_ptr<duckdb::PreparedStatement> prepare = con2.Prepare("SELECT $1");
-double test(double a){
-    // std::cout<<a<<std::endl;
-    std::unique_ptr<duckdb::QueryResult> result = prepare->Execute(12);
-    // auto result = con2.Query("select 1");
-    // result->Print();
-    result->Fetch()->Print();
-    // std::cout<<result->Fetch()->Print()<<std::endl;
-    return a;
-}
+// std::unique_ptr<duckdb::PreparedStatement> prepare = con2.Prepare("SELECT $1");
+// double test(double a){
+//     // std::cout<<a<<std::endl;
+//     std::unique_ptr<duckdb::QueryResult> result = prepare->Execute("12");
+//     // auto result = con2.Query("select 1");
+//     // result->Print();
+//     result->Fetch()->Print();
+//     // std::cout<<result->Fetch()->Print()<<std::endl;
+//     return a;
+// }
 
 void prepare_env(duckdb::Connection *con){
     // std::string table_schema =
@@ -52,12 +110,13 @@ void prepare_env(duckdb::Connection *con){
     // "PRIMARY KEY (l_orderkey,l_linenumber))";
     // con->Query(table_schema);
     // con->Query("copy lineitem from 'lineitem.csv' (AUTO_DETECT TRUE)");
-    // con->Query("CREATE TABLE lineitem AS SELECT * FROM read_csv_auto('lineitem.csv')");
-    // con->CreateScalarFunction<int64_t, int64_t>("random_op", &random_op);
+    con->Query("CREATE TABLE lineitem AS SELECT * FROM read_csv_auto('dataset/lineitem.csv')");
+    con->CreateScalarFunction<int64_t, int64_t>("random_op", &random_op);
+    con->CreateVectorizedFunction<int64_t, int64_t>("udf_vectorized_int", &udf_vectorized<int64_t>);
     // con->CreateScalarFunction<int64_t, int64_t>("classify", &classify);
-    con->Query("CREATE TABLE lineitem (id int, CO decimal(4,2) DEFAULT NULL, PRIMARY KEY (id))");
-    con->Query("insert into lineitem values (1,24.5), (2,2.45), (3, 0.12)");
-    con->CreateScalarFunction<double, double>("test", {duckdb::LogicalType::DOUBLE}, duckdb::LogicalType::DOUBLE, &test);
+    // con->Query("CREATE TABLE lineitem (id int, CO decimal(4,2) DEFAULT NULL, PRIMARY KEY (id))");
+    // con->Query("insert into lineitem values (1,24.5), (2,2.45), (3, 0.12)");
+    // con->CreateScalarFunction<double, double>("test", {duckdb::LogicalType::DOUBLE}, duckdb::LogicalType::DOUBLE, &test);
 }
 
 double mean(std::vector<double> v){
@@ -82,29 +141,31 @@ int main(int argc, char const *argv[])
 {
     duckdb::Connection con(db);
     prepare_env(&con);
-    auto result1 = con.Query("select test(CO) from lineitem");
-    result1->Print();
+    // auto result1 = con.Query("select random_op(l_quantity) from lineitem");
+    // auto result1 = con.Query("select udf_vectorized_int(l_quantity) from lineitem");
+    // result1->Print();
     // auto result = con.Query("SELECT 42");
-    // std::clock_t    start;
+    std::clock_t    start;
 
-    // ========== Test Pair 1 ===========
-    // std::vector<double> time1;
-    // for(int i=0;i<EPOCH_NUM;i++){
-    //     start = std::clock();
-    //     auto result1 = con.Query("select (l_quantity+1)/2*1.5 from lineitem");
-    //     print_res(result1.get());
-    //     time1.push_back((std::clock() - start) / (double)(CLOCKS_PER_SEC / 1000));
-    // }
-    // std::cout << "Time 1.1: " << mean(time1) << " ms" << std::endl;
+    //========== Test Pair 1 ===========
+    std::vector<double> time1;
+    for(int i=0;i<EPOCH_NUM;i++){
+        start = std::clock();
+        auto result1 = con.Query("select l_quantity % 3 from lineitem");
+        print_res(result1.get());
+        time1.push_back((std::clock() - start) / (double)(CLOCKS_PER_SEC / 1000));
+    }
+    std::cout << "Time 1.1: " << mean(time1) << " ms" << std::endl;
     
-    // std::vector<double> time2;
-    // for(int i=0;i<EPOCH_NUM;i++){
-    //     start = std::clock();
-    //     auto result2 = con.Query("select random_op(l_quantity) from lineitem");
-    //     print_res(result2.get());
-    //     time2.push_back((std::clock() - start) / (double)(CLOCKS_PER_SEC / 1000));
-    // }
-    // std::cout << "Time 1.2: " << mean(time2) << " ms" << std::endl;
+    std::vector<double> time2;
+    for(int i=0;i<EPOCH_NUM;i++){
+        start = std::clock();
+        // auto result2 = con.Query("select random_op(l_quantity) from lineitem");
+        auto result2 = con.Query("select udf_vectorized_int(l_quantity) from lineitem");
+        print_res(result2.get());
+        time2.push_back((std::clock() - start) / (double)(CLOCKS_PER_SEC / 1000));
+    }
+    std::cout << "Time 1.2: " << mean(time2) << " ms" << std::endl;
 
     // // ========== Test Pair 2 ===========
     // std::vector<double> time3;

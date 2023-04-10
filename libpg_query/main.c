@@ -36,9 +36,8 @@ int main() {
   // $$ LANGUAGE plpgsql;";
   char *sql = "\
 CREATE FUNCTION retrieve_parents(cid integer) RETURNS text AS $$\
-DECLARE pd text;    \
+DECLARE pd text = 'function';    \
 BEGIN\
-    pd = 'function';\
     RETURN concat(cid,pd);\
 END; $$\
 LANGUAGE PLPGSQL";

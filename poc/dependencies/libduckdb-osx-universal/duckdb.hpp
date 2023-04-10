@@ -10500,6 +10500,8 @@ private:
 		case LogicalTypeId::CHAR:
 		case LogicalTypeId::BLOB:
 			return std::is_same<T, string_t>();
+		case LogicalTypeId::DECIMAL:
+			return std::is_same<T, int64_t>();
 		default: // LCOV_EXCL_START
 			throw std::runtime_error("Type is not supported!");
 		} // LCOV_EXCL_STOP

@@ -12,3 +12,5 @@ main
 
 # Mac
 .DS_Store
+poc/dataset/lineitem.csv
+poc/poc

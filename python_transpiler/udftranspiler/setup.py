@@ -1,7 +1,8 @@
 from pathlib import Path
 from setuptools import setup
 
-long_description = (Path(__file__).parent / "README.md").read_text()
+long_description = (Path(__file__).parent.parent / "README.md").read_text()
+pglast_path = Path(__file__).parent / "libraries" / "pglast"
 
 setup(
     name="udftranspiler",
@@ -13,7 +14,8 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     install_requires=[
-        "click"
+        "click",
+        f"pglast @ file://localhost/{pglast_path}#egg=pglast"
     ],
     py_modules=['udftranspiler'],
     entry_points={

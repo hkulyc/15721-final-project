@@ -3,13 +3,12 @@
 ## Developement
 First set up a python virtual environment with
 ```
-mkdir env
 python3 -m venv env
 source env/bin/activate
 ```
 Next install the transpiler
 ```
-pip install -e .
+pip install -e udftranspiler/
 ```
 
 ## Usage

@@ -28,3 +28,6 @@
   ```
 
   *Note that "#{%d}#" means that the datatype name is the substring starting from this location, and ending by `,` or `)`.*
+
+- ### python_transpiler
+  Usage see its own README file.

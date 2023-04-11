@@ -15,7 +15,8 @@ setup(
     long_description_content_type='text/markdown',
     install_requires=[
         "click",
-        f"pglast @ file://localhost/{pglast_path}#egg=pglast"
+        f"pglast @ file://localhost/{pglast_path}#egg=pglast",
+        "pyyaml"
     ],
     py_modules=['udftranspiler'],
     entry_points={

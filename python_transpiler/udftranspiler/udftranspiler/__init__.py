@@ -1,20 +1,31 @@
 from pathlib import Path
 import click
-import yaml # yaml configuration file parser
+import yaml  # yaml configuration file parser
+from .trans import translate_plpgsql_udf_str
 
-root_path = Path(__file__).parent.parent
-resources_path = root_path / 'resources'
+root_path = Path(__file__).parent
 
-with open(resources_path/'example.yaml', 'r') as file:
+with open(root_path/'example.yaml', 'r') as file:
     example_config = yaml.safe_load(file)
 
-@click.group()
-def main() -> None:
+file_option = click.option(
+    "--output",
+    "-o",
+    help=(
+        "Output C++ to a file."
+    ),
+)
+
+
+@click.command()
+@click.argument("filepath")
+@file_option
+def main(filepath: str, output: str) -> None:
     """Transpile a UDF from PLpgSQL to C++."""
-    pass
-
-if __name__ == '__main__':
-    # main()
-    print(example_config['location'])
-
-
+    with open(filepath, 'r') as file:
+        cpp_output = translate_plpgsql_udf_str(file.read())
+    if output:
+        with open(output, 'w') as file:
+            file.write(cpp_output)
+    else:
+        print(cpp_output)

@@ -6,7 +6,7 @@ BEGIN
         IF i > 9 THEN
             EXIT;  -- exit loop
         else
-            cid = cid + 1
+            cid = cid + 1;
         END IF;
     END LOOP;
     RETURN concat(cid,pd);
@@ -24,7 +24,7 @@ DECLARE pd text = 'function';
 -- declare i int = 0;
 BEGIN
     FOR i IN 1..10 LOOP
-        cid = cid + 1
+        cid = cid + 1;
     END LOOP;
     RETURN concat(cid,pd);
 END; $$
@@ -35,7 +35,7 @@ DECLARE pd text = 'function';
 declare i int = 0;
 BEGIN
     while i < 10 LOOP
-        cid = cid + 1
+        cid = cid + 1;
     END LOOP;
     RETURN concat(cid,pd);
 END; $$

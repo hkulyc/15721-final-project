@@ -4,4 +4,9 @@ rest:
 
 prime_numbers: [2, 3, 5, 7, 11, 13, 17, 19]
 
+multiline-str: |-
+  this is a multiple line string.
+  yes it is.
+
 location: "I am stored in resources/example.yaml"
+

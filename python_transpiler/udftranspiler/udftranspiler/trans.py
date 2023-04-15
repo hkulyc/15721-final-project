@@ -1,5 +1,12 @@
 import pglast
 import json
+import yaml
+from pathlib import Path
+
+root_path = Path(__file__).parent
+
+with open(root_path/'query.yaml', 'r') as file:
+    query_config = yaml.safe_load(file)
 
 
 def translate_return_stmt(return_stmt: dict) -> str:
@@ -65,6 +72,7 @@ def translate_function(function: dict) -> str:
 def translate_plpgsql_udf_str(udf_str: str) -> str:
     try:
         ast_str = pglast.parser.parse_plpgsql_json(udf_str)
+        print(ast_str)
         ast = json.loads(ast_str)
     except pglast.parser.ParseError as e:
         print("Failed to parse UDF: ", e)

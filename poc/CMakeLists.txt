@@ -10,6 +10,6 @@ link_directories(${CMAKE_SOURCE_DIR}/dependencies/libduckdb-osx-universal)    # 
 # include_directories(${CMAKE_SOURCE_DIR}/dependencies/libduckdb-linux-amd64) # *.h
 # link_directories(${CMAKE_SOURCE_DIR}/dependencies/libduckdb-linux-amd64)    # *.dylib
 
-add_executable(poc test.cpp)
+add_executable(poc test.cpp conn_pool.cpp)
 
 target_link_libraries(poc duckdb)

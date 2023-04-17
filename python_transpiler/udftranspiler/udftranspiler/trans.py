@@ -3,10 +3,30 @@ import json
 import yaml
 from pathlib import Path
 
+# GLOBAL const variables
 root_path = Path(__file__).parent
+
+# GLOBAL VERSITILE variables
+function_count = 0
+functions = {"query"}
 
 with open(root_path/'query.yaml', 'r') as file:
     query_config = yaml.safe_load(file)
+
+def translate_query(query: dict, return_type:str = None) -> str:
+    """
+    Transpile a query statement
+    """
+    
+    params = {
+        'db_name': 'db',
+        'function_name': None,
+        'query_formatter': None,
+        'return_type': None,
+        'function_name': None,
+        'function_args': None,
+        'prepare_args': None
+    }
 
 
 def translate_return_stmt(return_stmt: dict) -> str:

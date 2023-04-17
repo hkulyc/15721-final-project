@@ -129,6 +129,30 @@ poc/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/poc.dir/build.make CMakeFiles/poc.dir/build
 .PHONY : poc/fast
 
+conn_pool.o: conn_pool.cpp.o
+.PHONY : conn_pool.o
+
+# target to build an object file
+conn_pool.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/poc.dir/build.make CMakeFiles/poc.dir/conn_pool.cpp.o
+.PHONY : conn_pool.cpp.o
+
+conn_pool.i: conn_pool.cpp.i
+.PHONY : conn_pool.i
+
+# target to preprocess a source file
+conn_pool.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/poc.dir/build.make CMakeFiles/poc.dir/conn_pool.cpp.i
+.PHONY : conn_pool.cpp.i
+
+conn_pool.s: conn_pool.cpp.s
+.PHONY : conn_pool.s
+
+# target to generate assembly for a file
+conn_pool.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/poc.dir/build.make CMakeFiles/poc.dir/conn_pool.cpp.s
+.PHONY : conn_pool.cpp.s
+
 test.o: test.cpp.o
 .PHONY : test.o
 
@@ -162,6 +186,9 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... poc"
+	@echo "... conn_pool.o"
+	@echo "... conn_pool.i"
+	@echo "... conn_pool.s"
 	@echo "... test.o"
 	@echo "... test.i"
 	@echo "... test.s"

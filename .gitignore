@@ -12,6 +12,7 @@ main
 
 # Mac
 .DS_Store
+.vscode
 poc/dataset/lineitem.csv
 poc/poc
 udf_transpiler/env/

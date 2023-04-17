@@ -22,7 +22,6 @@ file_option = click.option(
 @file_option
 def main(filepath: str, output: str) -> None:
     """Transpile a UDF from PLpgSQL to C++."""
-    print(example_config['multiline-str'])
     with open(filepath, 'r') as file:
         cpp_output = translate_plpgsql_udf_str(file.read())
     if output:

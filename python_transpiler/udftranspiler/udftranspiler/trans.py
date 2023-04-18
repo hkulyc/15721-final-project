@@ -101,7 +101,7 @@ def translate_function(function: dict) -> str:
 
 def translate_plpgsql_udf_str(udf_str: str) -> str:
     try:
-        translate_query(None, None)
+        # translate_query(None, None)
         ast_str = pglast.parser.parse_plpgsql_json(udf_str)
         print(ast_str)
         ast = json.loads(ast_str)

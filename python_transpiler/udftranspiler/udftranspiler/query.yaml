@@ -4,10 +4,10 @@ macro: |-
 
 
 global: |-
-  thread_local duckdb::Connection trans_con({db_name});
+  thread_local duckdb::Connection trans_con({db_name});\n
   thread_local std::unique_ptr<duckdb::PreparedStatement> {function_name}_prepare = trans_con.Prepare("SELECT {query_formatter}");
 
-function: |-
+function_call: |-
   {return_type} {function_name}({function_args}){
       auto res = prepare->Execute({prepare_args});
       if(!res->HasError())
@@ -15,5 +15,3 @@ function: |-
       else
           throw std::runtime_error("Error when waiting for query result.");
   }
-
-

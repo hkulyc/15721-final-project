@@ -8,10 +8,19 @@ root_path = Path(__file__).parent
 
 # GLOBAL VERSITILE variables
 function_count = 0
-functions = {"query"}
+# functions = {"query"}
 
+################ Configurations ################
 with open(root_path/'query.yaml', 'r') as file:
     query_config = yaml.safe_load(file)
+
+################################################
+
+def new_function():
+    global function_count
+    "create a new function, return the function name"
+    function_count += 1
+    return 'query'+str(function_count)
 
 def translate_query(query: dict, return_type:str = None) -> str:
     """
@@ -23,10 +32,11 @@ def translate_query(query: dict, return_type:str = None) -> str:
         'function_name': None,
         'query_formatter': None,
         'return_type': None,
-        'function_name': None,
+        'function_name': new_function(),
         'function_args': None,
         'prepare_args': None
     }
+    print(query_config['global'].format(**params))
 
 
 def translate_return_stmt(return_stmt: dict) -> str:
@@ -91,6 +101,7 @@ def translate_function(function: dict) -> str:
 
 def translate_plpgsql_udf_str(udf_str: str) -> str:
     try:
+        translate_query(None, None)
         ast_str = pglast.parser.parse_plpgsql_json(udf_str)
         print(ast_str)
         ast = json.loads(ast_str)

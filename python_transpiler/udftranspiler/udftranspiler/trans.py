@@ -2,13 +2,17 @@ import pglast
 import json
 import yaml
 from pathlib import Path
+from .utils import is_assignment, parse_assignment
 
 # GLOBAL const variables
 root_path = Path(__file__).parent
 
 # GLOBAL VERSITILE variables
 function_count = 0
-# functions = {"query"}
+global_macros = [] # also has includes
+global_variables = []
+global_functions = [] # non-udf utility functions (maybe need it)
+
 
 ################ Configurations ################
 with open(root_path/'query.yaml', 'r') as file:
@@ -103,8 +107,8 @@ def translate_plpgsql_udf_str(udf_str: str) -> str:
     try:
         # translate_query(None, None)
         ast_str = pglast.parser.parse_plpgsql_json(udf_str)
-        print(ast_str)
         ast = json.loads(ast_str)
+        print(json.dumps(ast, indent=1))
     except pglast.parser.ParseError as e:
         print("Failed to parse UDF: ", e)
         return
@@ -115,4 +119,5 @@ def translate_plpgsql_udf_str(udf_str: str) -> str:
         if ("PLpgSQL_function" in function):
             cpp_str += translate_function(function["PLpgSQL_function"])
 
-    return cpp_str
+
+    return "\n".join(global_macros + global_variables + global_functions) + cpp_str

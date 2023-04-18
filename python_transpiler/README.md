@@ -10,15 +10,6 @@ Next install the transpiler
 ```
 pip3 install -e udftranspiler/
 ```
-**A few shortcuts**
-- To install and run udftranspiler without any argument
-  ```
-  make run
-  ```
-- To run the udftranspiler's main function
-  ```
-  make run-file
-  ```
 
 ## Usage
 

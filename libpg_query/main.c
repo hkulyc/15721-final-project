@@ -4,6 +4,7 @@
 
 int main() {
   PgQueryPlpgsqlParseResult result;
+  // PgQueryParseResult result;
 
 //   result = pg_query_parse_plpgsql(" \
 //   CREATE OR REPLACE FUNCTION cs_fmt_browser_version(v_name varchar, \
@@ -17,23 +18,42 @@ int main() {
 // END; \
 // $$ LANGUAGE plpgsql;");
 
+  // char *sql = "\
+  // create function q3conditions(cmkt int, odate date, shipdate date)\
+  // returns int as $$ \
+  // declare thedate varchar(30) := '1995-03-15'; \
+  // declare date date := CAST (cmkt as date); \
+  // declare int tmp := \; \
+  // begin\
+  // if odate < 'asd' then return 2; end if;\
+  // return thedata; end; \
+  // $$ LANGUAGE plpgsql;";
+  // char *sql = "\
+  // create function q3conditions(cmkt int, odate date, shipdate date)\
+  // returns int as $$ \
+  // declare int tmp := (cmkt+2)*3; \
+  // BEGIN RETURN tmp; END;\
+  // $$ LANGUAGE plpgsql;";
   char *sql = "\
-  create function q3conditions(cmkt int, odate date, shipdate date)\
-  returns int as $$ \
-  declare thedate varchar(30) := '1995-03-15'; begin\
-  if odate < 'asd' then return 2; end if;\
-  return thedata; end; \
-  $$ LANGUAGE plpgsql;";
+CREATE FUNCTION retrieve_parents(cid integer) RETURNS text AS $$\
+DECLARE pd text = 'function';    \
+BEGIN\
+    RETURN concat(cid,pd);\
+END; $$\
+LANGUAGE PLPGSQL";
   // printf("%s", sql);
 
   result = pg_query_parse_plpgsql(sql);
+  // result = pg_query_parse(sql);
   if (result.error) {
     printf("error: %s at %d\n", result.error->message, result.error->cursorpos);
   } else {
     printf("%s\n", result.plpgsql_funcs);
+    // printf("%s\n", result.parse_tree);
   }
 
   pg_query_free_plpgsql_parse_result(result);
+  // pg_query_free_parse_result(result);
 
   // Optional, this ensures all memory is freed upon program exit (useful when running Valgrind)
   pg_query_exit();

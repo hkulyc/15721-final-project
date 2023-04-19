@@ -1,6 +1,6 @@
-CREATE FUNCTION if_func(cid integer) RETURNS text AS $$
-DECLARE pd text = 'function'; 
-declare i int = 0;
+CREATE FUNCTION if_func(cid integer) RETURNS VARCHAR AS $$
+DECLARE pd VARCHAR = 'function'; 
+declare i integer = 0;
 BEGIN
     LOOP
         IF i > 9 THEN
@@ -19,10 +19,13 @@ LANGUAGE PLPGSQL;
 --     EXIT WHEN count > 0;
 -- END LOOP;
 
-CREATE FUNCTION if_func(cid integer) RETURNS text AS $$
-DECLARE pd text = 'function'; 
+CREATE FUNCTION if_func(cid integer) RETURNS VARCHAR AS $$
+DECLARE pd VARCHAR = 'function'; 
 -- declare i int = 0;
 BEGIN
+    FOR i IN 1..10 LOOP
+        cid = cid + 1;
+    END LOOP;
     FOR i IN 1..10 LOOP
         cid = cid + 1;
     END LOOP;
@@ -30,9 +33,9 @@ BEGIN
 END; $$
 LANGUAGE PLPGSQL;
 
-CREATE FUNCTION if_func(cid integer) RETURNS text AS $$
-DECLARE pd text = 'function'; 
-declare i int = 0;
+CREATE FUNCTION if_func(cid integer) RETURNS VARCHAR AS $$
+DECLARE pd VARCHAR = 'function'; 
+declare i integer = 0;
 BEGIN
     while i < 10 LOOP
         cid = cid + 1;

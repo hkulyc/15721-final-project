@@ -18,3 +18,5 @@ poc/poc
 udf_transpiler/env/
 test/
 tests/
+
+parse_dump.json

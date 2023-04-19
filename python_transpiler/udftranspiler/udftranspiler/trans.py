@@ -1,36 +1,50 @@
 import pglast
 import json
 import yaml
+import re
 from pathlib import Path
-from .utils import is_assignment, parse_assignment
+from .utils import Udf_Type
 
 # GLOBAL const variables
 root_path = Path(__file__).parent
 
-# GLOBAL VERSITILE variables
-function_count = 0
-global_macros = [] # also has includes
-global_variables = []
-global_functions = [] # non-udf utility functions (maybe need it)
+
+class GV:
+    # GLOBAL VERSITILE variables
+    function_count = 0
+    global_macros = ["/* GOBAL MACROS */"]  # also has includes
+    global_variables = ["/* GOBAL VARIABLES */"]
+    # non-udf utility functions (maybe need it)
+    global_functions = ["/* GOBAL FUNCTIONS */"]
+    temp_count = 0
+    func_vars = {}  # variables in the current function
+    # will contain a dictionary with mapping from var_name -> (Udf_Type, initialized?)
+    func_name = ""
+    func_return_type: Udf_Type = None
 
 
 ################ Configurations ################
 with open(root_path/'query.yaml', 'r') as file:
     query_config = yaml.safe_load(file)
 
+with open(root_path/'function.yaml', 'r') as file:
+    function_config = yaml.safe_load(file)
+
 ################################################
 
-def new_function():
-    global function_count
-    "create a new function, return the function name"
-    function_count += 1
-    return 'query'+str(function_count)
 
-def translate_query(query: dict, return_type:str = None) -> str:
+def new_function():
+    "create a new function, return the function name"
+    GV.function_count += 1
+    return 'query'+str(GV.function_count)
+
+
+def translate_query(query: dict, return_type: str = None) -> tuple[str, str]:
     """
-    Transpile a query statement
+    Transpile a query statement.
+    This will return a string that initializes the temp, and the temp name.
     """
-    
+
     params = {
         'db_name': 'db',
         'function_name': None,
@@ -40,11 +54,14 @@ def translate_query(query: dict, return_type:str = None) -> str:
         'function_args': None,
         'prepare_args': None
     }
-    print(query_config['global'].format(**params))
+    # print(query_config['global'].format(**params))
+    temp_str = f"t{GV.temp_count}"
+    GV.temp_count += 1
+    return f"initialization of {temp_str} = {query};", temp_str
 
 
 def translate_return_stmt(return_stmt: dict) -> str:
-    """
+    """;
     Transpile a return statement from PL/pgSQL to C++.
     """
     output = ""
@@ -93,13 +110,71 @@ def translate_action(action: dict) -> str:
     return output
 
 
-def translate_function(function: dict) -> str:
+def get_function_vars(datums: list, udf_str: str) -> tuple[list, list]:
+    """
+    Get the function arguments from the datums.
+    Returns a tuple with a list of the formatted function arguments, and a
+    list of initializations/declarations for function variables.
+    """
+    scanning_func_args = True
+    initializations = []
+    args = []
+    for datum in datums:
+        if ("PLpgSQL_var" in datum):
+            var = datum["PLpgSQL_var"]
+            name = var["refname"]
+            if (name == "found"):
+                scanning_func_args = False
+                continue
+            typ = var["datatype"]["PLpgSQL_type"]["typname"]
+            udf_type = Udf_Type(typ, udf_str)
+            if (udf_type.is_unknown()):
+                # variables with UNKNOWN types are created by for loops later in the code
+                # We don't need to do anything with them here
+                continue
+            if (scanning_func_args):
+                GV.func_vars[name] = (udf_type, True)
+                args.append(function_config["farg"].format(
+                    type=udf_type.cpp_type, name=name))
+            else:
+                if "default_val" in var:
+                    query, assigned_temp = translate_query(
+                        var["default_val"]["PLpgSQL_expr"]["query"])
+                    initializations.append(
+                        function_config["fdecl_var"].format(
+                            var_init=query, type=udf_type.cpp_type, name=name,
+                            var=assigned_temp)
+                    )
+                    GV.func_vars[name] = (udf_type, True)
+                else:
+                    initializations.append(
+                        function_config["finit_var"].format(
+                            type=udf_type.cpp_type, name=name)
+                    )
+                    GV.func_vars[name] = (udf_type, False)
+
+        else:
+            raise Exception("Unknown datum field, ", datum)
+    return args, initializations
+
+
+def translate_function(function: dict, udf_str: str) -> str:
     """
     Transpile a function from PL/pgSQL to C++.
+    Returns a string with the transpiled function.
     """
+    # Get function args
     output = ""
-    # TODO: handle function arguments
-    output += translate_action(function["action"])
+    args, initializations = get_function_vars(function["datums"], udf_str)
+    params = {
+        "return_type": GV.func_return_type.cpp_type,
+        "function_name": GV.func_name,
+        "function_args": ", ".join(args),
+        "initializations": "\n".join(initializations)
+    }
+    output += function_config['fshell'].format(**params)
+    # TODO: Reenable translate_action
+    # output += translate_action(function["action"])
     return output
 
 
@@ -108,16 +183,29 @@ def translate_plpgsql_udf_str(udf_str: str) -> str:
         # translate_query(None, None)
         ast_str = pglast.parser.parse_plpgsql_json(udf_str)
         ast = json.loads(ast_str)
-        print(json.dumps(ast, indent=1))
+        with open("parse_dump.json", "w") as f:
+            f.write(json.dumps(ast, indent=2))
     except pglast.parser.ParseError as e:
         print("Failed to parse UDF: ", e)
         return
 
-    cpp_str = "Need to implement"
+    cpp_str = ""
 
-    for function in ast:
+    return_types = re.findall(r"RETURNS\s+(\w+)", udf_str, flags=re.IGNORECASE)
+    function_names = re.findall(
+        r"CREATE\s+FUNCTION\s+(\w+)", udf_str, flags=re.IGNORECASE)
+    if len(return_types) < len(ast):
+        raise Exception("Return type not specified for all functions")
+    if len(function_names) < len(ast):
+        raise Exception("Function name not specified for all functions")
+
+    for idx, function in enumerate(ast):
         if ("PLpgSQL_function" in function):
-            cpp_str += translate_function(function["PLpgSQL_function"])
+            GV.func_vars = {}
+            GV.func_name = function_names[idx]
+            GV.func_return_type = Udf_Type(return_types[idx], udf_str)
+            cpp_str += translate_function(
+                function["PLpgSQL_function"], udf_str)
+            cpp_str += "\n\n"
 
-
-    return "\n".join(global_macros + global_variables + global_functions) + cpp_str
+    return "\n".join(GV.global_macros + GV.global_variables + GV.global_functions) + "\n" + cpp_str

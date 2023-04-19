@@ -55,3 +55,6 @@ class Udf_Type:
 
     def is_unknown(self):
         return self.duckdb_type == "UNKNOWN"
+
+    def get_cpp_sqltype(self):
+        return f"SQLType::{self.duckdb_type}"

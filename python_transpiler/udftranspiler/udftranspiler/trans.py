@@ -12,11 +12,12 @@ root_path = Path(__file__).parent
 class GV:
     # GLOBAL VERSITILE variables
     function_count = 0
-    global_macros = ["/* GOBAL MACROS */"]  # also has includes
-    global_variables = ["/* GOBAL VARIABLES */"]
+    global_macros = ["/* GLOBAL MACROS */"]  # also has includes
+    global_variables = ["/* GLOBAL VARIABLES */"]
     # non-udf utility functions (maybe need it)
-    global_functions = ["/* GOBAL FUNCTIONS */"]
+    global_functions = ["/* GLOBAL FUNCTIONS */"]
     temp_count = 0
+    func_args = []  # list of (arg_name, Udf_Type)
     func_vars = {}  # variables in the current function
     # will contain a dictionary with mapping from var_name -> (Udf_Type, initialized?)
     func_name = ""
@@ -118,7 +119,6 @@ def get_function_vars(datums: list, udf_str: str) -> tuple[list, list]:
     """
     scanning_func_args = True
     initializations = []
-    args = []
     for datum in datums:
         if ("PLpgSQL_var" in datum):
             var = datum["PLpgSQL_var"]
@@ -134,8 +134,7 @@ def get_function_vars(datums: list, udf_str: str) -> tuple[list, list]:
                 continue
             if (scanning_func_args):
                 GV.func_vars[name] = (udf_type, True)
-                args.append(function_config["farg"].format(
-                    type=udf_type.cpp_type, name=name))
+                GV.func_args.append((name, udf_type))
             else:
                 if "default_val" in var:
                     query, assigned_temp = translate_query(
@@ -155,7 +154,7 @@ def get_function_vars(datums: list, udf_str: str) -> tuple[list, list]:
 
         else:
             raise Exception("Unknown datum field, ", datum)
-    return args, initializations
+    return initializations
 
 
 def translate_function(function: dict, udf_str: str) -> str:
@@ -165,14 +164,24 @@ def translate_function(function: dict, udf_str: str) -> str:
     """
     # Get function args
     output = ""
-    args, initializations = get_function_vars(function["datums"], udf_str)
+    initializations = get_function_vars(function["datums"], udf_str)
+    args_str = map(lambda a: function_config["farg"].format(
+        type=a[1].cpp_type, name=a[0]), GV.func_args)
     params = {
         "return_type": GV.func_return_type.cpp_type,
         "function_name": GV.func_name,
-        "function_args": ", ".join(args),
+        "function_args": ", ".join(args_str),
         "initializations": "\n".join(initializations)
     }
     output += function_config['fshell'].format(**params)
+    params = {
+        "cpp_ret_type": GV.func_return_type.cpp_type,
+        "cpp_arg_types": ", ".join(map(lambda a: a[1].cpp_type, GV.func_args)),
+        "duck_ret_type": GV.func_return_type.get_cpp_sqltype(),
+        "duck_arg_types": ", ".join(map(lambda a: a[1].get_cpp_sqltype(), GV.func_args)),
+        "func_name": GV.func_name
+    }
+    output += "\n"+function_config['fcreate'].format(**params)
     # TODO: Reenable translate_action
     # output += translate_action(function["action"])
     return output
@@ -201,6 +210,7 @@ def translate_plpgsql_udf_str(udf_str: str) -> str:
 
     for idx, function in enumerate(ast):
         if ("PLpgSQL_function" in function):
+            GV.func_args = []
             GV.func_vars = {}
             GV.func_name = function_names[idx]
             GV.func_return_type = Udf_Type(return_types[idx], udf_str)

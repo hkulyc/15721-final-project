@@ -12,3 +12,6 @@ fdecl_var: |-
 
 finit_var: |-
   {type} {name};
+
+fcreate: |-
+  con.CreateScalarFunction<{cpp_ret_type}, {cpp_arg_types}>("{func_name}", {{{duck_arg_types}}}, {duck_ret_type}, &{func_name});

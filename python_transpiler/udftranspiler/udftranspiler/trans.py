@@ -46,8 +46,9 @@ def translate_query(query: str, expected_type: Udf_Type) -> str:
     """
     # there are three types of query parents
     # variable value assignment
-    print(query)
-    print(gv.func_vars)
+    # print(query)
+    # print(gv.func_vars)
+    query = query.strip()
     if is_assignment(query):
         leftv, rightv = parse_assignment(query, gv.func_vars)
         if is_const_or_var(rightv, gv.func_vars):
@@ -65,6 +66,8 @@ def translate_query(query: str, expected_type: Udf_Type) -> str:
 
     # directly returning a value based on the expected_type
     else:
+        if is_const_or_var(query, gv.func_vars):
+            return '{}\n'.format(query)
         pre_st, args = prepare_statement(query, gv.func_args)
         params = {
             'db_name': 'db',

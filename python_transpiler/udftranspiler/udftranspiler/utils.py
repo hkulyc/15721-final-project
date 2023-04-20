@@ -1,12 +1,36 @@
+def dbg_assert(cond: bool, msg: str):
+    if not cond:
+        raise Exception(msg)
+    
 def is_assignment(query: str):
     "Check if a query is an assignment statement"
     return ':=' in query
 
 
-def parse_assignment(query: str, vars):
+def parse_assignment(query: str, vars: dict):
     "Parse an assignment query. May raise exception if wrong"
-    pass
+    v_list = query.split(':=')
+    dbg_assert(len(v_list) == 2, 'bad assignment: {}'.format(query))
+    leftv = v_list[0].strip()
+    dbg_assert(leftv in vars, 'variable {} is not a declared local variable'.format(leftv))
+    rightv = v_list[1].strip()
+    return leftv, rightv
 
+def is_number(s: str):
+    "check if a string represents either float or int"
+    return s.replace('.','',1).isdigit()
+
+def is_const_or_var(expr: str, vars: dict):
+    "check if an expression is a constant such as 2/'string', or variable"
+    if (expr.startswith('"') and expr.endswith('"'))  or (expr.startswith("'") and expr.endswith("'")):
+        # it is a string const
+        return True
+    elif (is_number(expr)):
+        return True
+    elif (expr in vars):
+        return True
+    else: return False
+    
 
 class Udf_Type:
     duckdb_to_cpp_type = {

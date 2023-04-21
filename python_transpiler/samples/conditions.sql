@@ -2,7 +2,7 @@ CREATE FUNCTION if_func(cid integer) RETURNS VARCHAR AS $$
 DECLARE pd VARCHAR = 'function'; 
 DECLARE pd2 VARCHAR;
 BEGIN
-    pd2 := pd;
+    pd2 := pd+'test'+pd+pd2;
     if cid < 3 then 
         cid := cid + 1;
     else

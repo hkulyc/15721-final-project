@@ -1,20 +1,19 @@
 # this file contains C++ code templates for passing queries to DuckDB to handle
 macro: |-
   #include <stdexcept>
-
+  thread_local duckdb::Connection trans_con({db_name});
 
 global: |-
-  thread_local duckdb::Connection trans_con({db_name});
-  thread_local std::unique_ptr<duckdb::PreparedStatement> {function_name}_prepare = trans_con.Prepare("SELECT {query_formatter}");
+  thread_local std::unique_ptr<duckdb::PreparedStatement> {function_name}_prepare = trans_con.Prepare("{query_formatter}");
 
 function: |-
-  {return_type} {function_name}({function_args}){
+  {return_type} {function_name}({function_args}){{
       auto res = prepare->Execute({prepare_args});
       if(!res->HasError())
           return res->Fetch()->GetValue(0,0).GetValue<{return_type}>();
       else
           throw std::runtime_error("Error when waiting for query result.");
-  }
+  }}
 
 function_call: |-
   {function_name}({prepare_args})

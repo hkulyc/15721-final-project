@@ -30,6 +30,13 @@ def is_const_or_var(expr: str, vars: dict):
     elif (expr in vars):
         return True
     else: return False
+
+def function_arg_decl(args, vars):
+    "return a string that declares the function arguments"
+    arg_list = []
+    for arg in args:
+        arg_list.append(vars[arg][0].cpp_type + ' ' + arg)
+    return ', '.join(arg_list)
     
 
 class Udf_Type:

@@ -3,7 +3,7 @@ import json
 import yaml
 import re
 from pathlib import Path
-from .utils import Udf_Type, is_assignment, parse_assignment, is_const_or_var
+from .utils import Udf_Type, is_assignment, parse_assignment, is_const_or_var, function_arg_decl, dbg_assert
 from .query import prepare_statement
 
 # GLOBAL const variables
@@ -31,6 +31,7 @@ class GV:
     # will contain a dictionary with mapping from var_name -> (Udf_Type, initialized?)
     func_name = ""
     func_return_type: Udf_Type = None
+    query_macro = False
 gv = GV()
 
 def new_function():
@@ -44,40 +45,48 @@ def translate_query(query: str, expected_type: Udf_Type) -> str:
     Transpile a query statement.
     This will return a string that initializes the temp, and the temp name.
     """
-    # there are three types of query parents
     # variable value assignment
-    # print(query)
-    # print(gv.func_vars)
     query = query.strip()
     if is_assignment(query):
         leftv, rightv = parse_assignment(query, gv.func_vars)
         if is_const_or_var(rightv, gv.func_vars):
             return '{} = {}\n'.format(leftv, rightv)
-        # todo
-        pre_st, args = prepare_statement(rightv, gv.func_vars)
+        prep_statement, args = prepare_statement(rightv, gv.func_vars)
         params = {
             'db_name': 'db',
-            'query_formatter': pre_st,
+            'query_formatter': prep_statement,
             'return_type': gv.func_vars[leftv][0].cpp_type,
             'function_name': new_function(),
-            'function_args': None,
-            'prepare_args': None
+            'function_args': function_arg_decl(args, gv.func_vars),
+            'prepare_args': ', '.join(args)
         }
+        if not gv.query_macro:
+            gv.global_macros.append(query_config['macro'].format(**params))
+            gv.query_macro = True
+        gv.global_variables.append(query_config['global'].format(**params))
+        gv.global_functions.append(query_config['function'].format(**params))
+        return '{} = {};\n'.format(leftv, query_config['function_call'].format(**params))
 
     # directly returning a value based on the expected_type
     else:
         if is_const_or_var(query, gv.func_vars):
             return '{}\n'.format(query)
-        pre_st, args = prepare_statement(query, gv.func_args)
+        prep_statement, args = prepare_statement(query, gv.func_vars)
         params = {
             'db_name': 'db',
-            'query_formatter': None,
+            'query_formatter': prep_statement,
             'return_type': expected_type.cpp_type,
             'function_name': new_function(),
-            'function_args': None,
-            'prepare_args': None
+            'function_args': function_arg_decl(args, gv.func_vars),
+            'prepare_args': ', '.join(args)
         }
-            
+        if not gv.query_macro:
+            gv.global_macros.append(query_config['macro'].format(**params))
+            gv.query_macro = True
+        gv.global_variables.append(query_config['global'].format(**params))
+        gv.global_functions.append(query_config['function'].format(**params))
+        return '{}'.format(query_config['function_call'].format(**params))
+        
     # print(query_config['global'].format(**params))
     # temp_str = f"t{gv.temp_count}"
     # gv.temp_count += 1
@@ -100,8 +109,10 @@ def translate_return_stmt(return_stmt: dict) -> str:
     """;
     Transpile a return statement from PL/pgSQL to C++.
     """
-    output = ""
-    return output
+    # supported field lineno, expr
+    dbg_assert(len(return_stmt) == 2, "return_stmt should only have lineno and expr")
+    output = "return "
+    return output+translate_body([return_stmt['expr']], gv.func_return_type)+';\n'
 
 
 def translate_if_stmt(if_stmt: dict) -> str:

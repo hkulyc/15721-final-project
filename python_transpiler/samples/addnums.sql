@@ -14,7 +14,7 @@ RETURN val1 + val2 + p1+p2;
 END; $$
 LANGUAGE PLPGSQL;
 
-CREATE FUnCTION addNumbers3(val1, val2 DOUBLE) RETuRNS integer AS $$
+CREATE FUnCTION addNumbers3(val1 DOUBLE, val2 DOUBLE) RETuRNS integer AS $$
 DECLARE p1 integer = 10*val1;
 DECLARE p2 integer=20;
 BEGIN

@@ -4,14 +4,18 @@ def dbg_assert(cond: bool, msg: str):
     if not cond:
         raise Exception(msg)
     
-def is_assignment(query: str):
-    "Check if a query is an assignment statement"
-    return ':=' in query
+# def is_assignment(query: str):
+#     "Check if a query is an assignment statement"
+#     return ':=' in query
 
 
 def parse_assignment(query: str, vars: dict):
     "Parse an assignment query. May raise exception if wrong"
-    v_list = query.split(':=')
+    if ":=" in query:
+        v_list = query.split(':=')
+    else:
+        v_list = query.split('=',1)
+
     dbg_assert(len(v_list) == 2, 'bad assignment: {}'.format(query))
     leftv = v_list[0].strip()
     dbg_assert(leftv in vars, 'variable {} is not a declared local variable'.format(leftv))
@@ -64,6 +68,8 @@ class Udf_Type:
         Resolve a type name to a C++ type name and a type size.
         """
         if type_name.startswith("#"):
+            if len(udf_str) == 0:
+                raise Exception("udf_str is empty")
             type_start = int(type_name.replace("#", ""))
             type_end = type_start
             while udf_str[type_end].isalpha():
@@ -77,7 +83,7 @@ class Udf_Type:
         else:
             raise Exception("Unknown type: ", type_name)
 
-    def __init__(self, duckdb_type: str, udf_str: str):
+    def __init__(self, duckdb_type: str, udf_str: str = ""):
         duckdb_type, cpp_type = self.resolve_type(duckdb_type, udf_str)
         self.duckdb_type = duckdb_type
         self.cpp_type = cpp_type

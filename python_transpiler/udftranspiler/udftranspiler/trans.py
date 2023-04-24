@@ -4,7 +4,7 @@ import yaml
 import re
 from pathlib import Path
 from typing import Tuple
-from .utils import Udf_Type, is_assignment, parse_assignment, is_const_or_var, function_arg_decl, dbg_assert
+from .utils import Udf_Type, parse_assignment, is_const_or_var, function_arg_decl, dbg_assert
 from .query import prepare_statement
 
 
@@ -17,6 +17,9 @@ with open(root_path/'query.yaml', 'r') as file:
 
 with open(root_path/'function.yaml', 'r') as file:
     function_config = yaml.safe_load(file)
+
+with open(root_path/'control.yaml', 'r') as file:
+    control_config = yaml.safe_load(file)
 
 ################################################
 
@@ -42,17 +45,17 @@ def new_function():
     return 'query'+str(gv.function_count)
     
 
-def translate_query(query: str, expected_type: Udf_Type) -> str:
+def translate_query(query: str, expected_type: Udf_Type, query_is_assignment : bool = False) -> str:
     """
     Transpile a query statement.
     This will return a string that initializes the temp, and the temp name.
     """
     # variable value assignment
     query = query.strip()
-    if is_assignment(query):
+    if query_is_assignment:
         leftv, rightv = parse_assignment(query, gv.func_vars)
         if is_const_or_var(rightv, gv.func_vars):
-            return '{} = {}\n'.format(leftv, rightv)
+            return '{} = {}'.format(leftv, rightv)
         prep_statement, args = prepare_statement(rightv, gv.func_vars)
         params = {
             'db_name': 'db',
@@ -67,12 +70,12 @@ def translate_query(query: str, expected_type: Udf_Type) -> str:
             gv.query_macro = True
         gv.global_variables.append(query_config['global'].format(**params))
         gv.global_functions.append(query_config['function'].format(**params))
-        return '{} = {};\n'.format(leftv, query_config['function_call'].format(**params))
+        return '{} = {};'.format(leftv, query_config['function_call'].format(**params))
 
     # directly returning a value based on the expected_type
     else:
         if is_const_or_var(query, gv.func_vars):
-            return '{}\n'.format(query)
+            return '{}'.format(query)
         prep_statement, args = prepare_statement(query, gv.func_vars)
         params = {
             'db_name': 'db',
@@ -95,16 +98,21 @@ def translate_query(query: str, expected_type: Udf_Type) -> str:
     # return f"initialization of {temp_str} = {query};", temp_str
     return 
 
-def translate_expr(expr: dict, expected_type: Udf_Type) -> str:
+def translate_expr(expr: dict, expected_type: Udf_Type, query_is_assignment : bool) -> str:
+    print("translate_expr()",expr)
     if "query" in expr and len(expr) == 1:
-        return translate_query(expr['query'], expected_type)
+        return translate_query(expr['query'], expected_type, query_is_assignment)
     else:
         raise Exception('Unsupport PLpgSQL_expr: {}'.format(expr))
     
 def translate_assign_stmt(stmt: dict) -> str:
     # example: {'lineno': 5, 'varno': 3, 'expr': {'PLpgSQL_expr': {'query': 'pd2 := pd'}}
     # other possible fields: lineno, varno
-    return translate_body((stmt['expr'],))
+    stmt = stmt['expr']
+    dbg_assert("PLpgSQL_expr" in stmt, 'assignment must be in form of expression')
+    
+
+    return translate_expr(stmt["PLpgSQL_expr"], None, True)
 
 
 def translate_return_stmt(return_stmt: dict) -> str:
@@ -124,6 +132,52 @@ def translate_if_stmt(if_stmt: dict) -> str:
     output = ""
     return output
 
+def translate_loop_stmt(loop_stmt: dict) -> str:
+    """
+    Transpile a simple loop statement from PL/pgSQL to C++.
+    """
+    output = ""
+    params = {
+        "body": translate_body(loop_stmt['body'])
+    }
+    output += control_config['simple'].format(**params)
+    return output
+
+def translate_for_stmt(for_stmt: dict) -> str:
+    """
+    Transpile a for loop statement from PL/pgSQL to C++.
+    """
+    output = ""
+
+    # TODO: support REVERSE
+
+    var = for_stmt["var"]["PLpgSQL_var"]
+    name = var["refname"]
+    gv.func_vars[name] = (Udf_Type("INTEGER"), False)
+
+    params = {
+        "body": translate_body(for_stmt['body']),
+        "start": translate_expr(for_stmt["lower"]["PLpgSQL_expr"], Udf_Type("INTEGER"), False),
+        "end": translate_expr(for_stmt["upper"]["PLpgSQL_expr"], Udf_Type("INTEGER"), False),
+        "name": name,
+        "step": translate_expr(for_stmt["step"]["PLpgSQL_expr"], Udf_Type("INTEGER"), False) if ("step" in for_stmt) else 1,
+    }
+    output += control_config['for'].format(**params)
+    return output
+
+def translate_while_stmt(while_stmt: dict) -> str:
+    """
+    Transpile a while loop statement from PL/pgSQL to C++.
+    """
+    output = ""
+
+    params = {
+        "body": translate_body(while_stmt['body']),
+        "condition": translate_expr(while_stmt["cond"]["PLpgSQL_expr"], Udf_Type("BOOLEAN"), False),
+    }
+    output += control_config['while'].format(**params)
+    return output
+
 
 def translate_body(body: list, expected_type: Udf_Type = None) -> str:
     """
@@ -133,18 +187,36 @@ def translate_body(body: list, expected_type: Udf_Type = None) -> str:
     argument expected_type.
     """
     output = ""
+    is_first = True
     for stmt in body:
+        if not is_first:
+            output += "\n"
+
         # Example, need to add more stmts
         if ("PLpgSQL_stmt_if" in stmt):
             output += translate_if_stmt(stmt["PLpgSQL_stmt_if"])
         elif ("PLpgSQL_stmt_return" in stmt):
             output += translate_return_stmt(stmt["PLpgSQL_stmt_return"])
+        
         elif ("PLpgSQL_expr" in stmt):
-            output += translate_expr(stmt["PLpgSQL_expr"], expected_type)
+            output += translate_expr(stmt["PLpgSQL_expr"], expected_type, False)
+
         elif ("PLpgSQL_stmt_assign" in stmt):
             output += translate_assign_stmt(stmt["PLpgSQL_stmt_assign"])
+        
+        # loop
+        elif ("PLpgSQL_stmt_loop" in stmt):
+            output += translate_loop_stmt(stmt["PLpgSQL_stmt_loop"])
+        elif ("PLpgSQL_stmt_fori" in stmt):
+            output += translate_for_stmt(stmt["PLpgSQL_stmt_fori"])
+        elif ("PLpgSQL_stmt_while" in stmt):
+            output += translate_while_stmt(stmt["PLpgSQL_stmt_while"])
         else:
             raise Exception("Unknown statement type: {}".format(str(stmt)))
+        
+        # TODO: support EXIT and CONTINUE
+        
+        is_first = False
     return output
 
 
@@ -192,13 +264,13 @@ def get_function_vars(datums: list, udf_str: str) -> Tuple[list, list]:
                 gv.func_args.append((name, udf_type))
             else:
                 if "default_val" in var:
-                    # query, assigned_temp = translate_query(
-                    #     var["default_val"]["PLpgSQL_expr"]["query"], udf_type)
-                    # initializations.append(
-                    #     function_config["fdecl_var"].format(
-                    #         var_init=query, type=udf_type.cpp_type, name=name,
-                    #         var=assigned_temp)
-                    # )
+                    query_result = translate_query(
+                        var["default_val"]["PLpgSQL_expr"]["query"], udf_type)
+                    initializations.append(
+                        function_config["fdecl_var"].format(
+                            type=udf_type.cpp_type, name=name,
+                            var=query_result)
+                    )
                     gv.func_vars[name] = (udf_type, True)
                 else:
                     initializations.append(
@@ -226,7 +298,8 @@ def translate_function(function: dict, udf_str: str) -> str:
         "return_type": gv.func_return_type.cpp_type,
         "function_name": gv.func_name,
         "function_args": ", ".join(args_str),
-        "initializations": "\n".join(initializations)
+        "initializations": "\n".join(initializations),
+        "body": translate_action(function["action"])
     }
     output += function_config['fshell'].format(**params)
     params = {
@@ -237,8 +310,6 @@ def translate_function(function: dict, udf_str: str) -> str:
         "func_name": gv.func_name
     }
     output += "\n"+function_config['fcreate'].format(**params)
-    # # TODO: Reenable translate_action
-    # output += translate_action(function["action"])
     return output
 
 

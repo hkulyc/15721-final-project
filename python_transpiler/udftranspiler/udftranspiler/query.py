@@ -16,9 +16,9 @@ class QueryTraverser(Visitor):
             raise Exception('Only one field is allowed: '+node())
         self.sql_modifier.append((node.location, node.fields[0].val))
 
-    def rules(self, node):
+    def rules(self, ancestors, node):
         if(type(node) == pglast.ast.ColumnRef):
-            self.sql_modifier_callback(node)
+            self.sql_modifier_callback(ancestors, node)
         # more rules
         return
     

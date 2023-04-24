@@ -1,0 +1,15 @@
+simple: |-
+  while (true){{
+    {body}
+  }}
+
+while: |-
+  while ({condition}){{
+    {body}
+  }}
+
+for: |- 
+  for (int {name} = {start}; {name} <= {end}; {name} += {step}){{
+    {body}
+  }}
+

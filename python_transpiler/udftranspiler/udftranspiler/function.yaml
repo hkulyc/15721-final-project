@@ -1,13 +1,13 @@
 fshell: |-
   {return_type} {function_name}({function_args}) {{
   {initializations}
+  {body}
   }}
 
 farg: |-
   {type} {name}
 
 fdecl_var: |-
-  {var_init}
   {type} {name} = {var};
 
 finit_var: |-

@@ -1,15 +1,15 @@
-CREATE FUNCTION if_func(cid integer) RETURNS VARCHAR AS $$
-DECLARE pd VARCHAR = 'function'; 
+CREATE FUNCTION simple_loop(x integer) RETURNS INTEGER AS $$
 declare i integer = 0;
 BEGIN
     LOOP
         IF i > 9 THEN
             EXIT;  -- exit loop
         else
-            cid = cid + 1;
+            i = i + 1;
+        
         END IF;
     END LOOP;
-    RETURN concat(cid,pd);
+    RETURN x;
 END; $$
 LANGUAGE PLPGSQL;
 
@@ -19,27 +19,32 @@ LANGUAGE PLPGSQL;
 --     EXIT WHEN count > 0;
 -- END LOOP;
 
-CREATE FUNCTION if_func(cid integer) RETURNS VARCHAR AS $$
-DECLARE pd VARCHAR = 'function'; 
--- declare i int = 0;
+CREATE FUNCTION for_loop(x integer) RETURNS INTEGER AS $$
+declare i integer = 0;
 BEGIN
-    FOR i IN 1..10 LOOP
-        cid = cid + 1;
+    FOR j IN 1..10 LOOP
+        i = i + 1;
     END LOOP;
-    FOR i IN 1..10 LOOP
-        cid = cid + 1;
-    END LOOP;
-    RETURN concat(cid,pd);
+    RETURN x;
 END; $$
 LANGUAGE PLPGSQL;
 
-CREATE FUNCTION if_func(cid integer) RETURNS VARCHAR AS $$
-DECLARE pd VARCHAR = 'function'; 
+CREATE FUNCTION for_loop_2(x integer) RETURNS INTEGER AS $$
+declare i integer = 0;
+BEGIN
+    FOR j IN 1..10 BY 2 LOOP
+        i = i + 1;
+    END LOOP;
+    RETURN x;
+END; $$
+LANGUAGE PLPGSQL;
+
+CREATE FUNCTION while_loop(x integer) RETURNS INTEGER AS $$
 declare i integer = 0;
 BEGIN
     while i < 10 LOOP
-        cid = cid + 1;
+        i = i + 1;
     END LOOP;
-    RETURN concat(cid,pd);
+    RETURN x;
 END; $$
 LANGUAGE PLPGSQL;

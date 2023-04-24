@@ -1,0 +1,17 @@
+fshell: |-
+  {return_type} {function_name}({function_args}) {{
+  {initializations}
+  }}
+
+farg: |-
+  {type} {name}
+
+fdecl_var: |-
+  {var_init}
+  {type} {name} = {var};
+
+finit_var: |-
+  {type} {name};
+
+fcreate: |-
+  con.CreateScalarFunction<{cpp_ret_type}, {cpp_arg_types}>("{func_name}", {{{duck_arg_types}}}, {duck_ret_type}, &{func_name});

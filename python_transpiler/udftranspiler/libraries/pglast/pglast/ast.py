@@ -79,6 +79,7 @@ class Node:
                     v = tuple(G[i['@']](i) if isinstance(i, dict) and '@' in i else i
                               for i in v)
             setattr(self, a, v)
+            
 
     def __iter__(self):
         "Iterate over all attribute names of this node."
@@ -142,7 +143,6 @@ class Node:
         This tries to coerce the given `value` accordingly with the *ctype* of the
         attribute, raising opportune exception when that is not possible.
         '''
-
         if value is not None and name in self.__slots__:
             ctype, ptype, adaptor = self.__slots__[name]
             if not isinstance(ptype, tuple):
@@ -4052,7 +4052,8 @@ def _fixup_attribute_types_in_slots():
                         aname = f'{cls.__name__}.{attr}'
                         raise NotImplementedError(f'Unhandled C type of {aname}: {ctype}')
             slots[attr] = SlotTypeInfo(ctype, ptype, adaptor)
-
+        slots['extra'] = None
+        setattr(cls, 'extra', {})
 
 _fixup_attribute_types_in_slots()
 del _fixup_attribute_types_in_slots

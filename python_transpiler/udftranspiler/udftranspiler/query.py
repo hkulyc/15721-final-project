@@ -10,7 +10,7 @@ class QueryTraverser(Visitor):
     def __init__(self):
         self.sql_modifier = []
 
-    def sql_modifier_callback(self, node):
+    def sql_modifier_callback(self, ancestors, node):
         "Callback function to modify the sql"
         if(len(node.fields) != 1):
             raise Exception('Only one field is allowed: '+node())
@@ -24,7 +24,7 @@ class QueryTraverser(Visitor):
     
     def visit(self, ancestors, node):
         # print(ancestors, ':', node(depth=0, skip_none=True))
-        self.rules(node)
+        self.rules(ancestors, node)
 
 
 def parse_sql_query(sql: str):

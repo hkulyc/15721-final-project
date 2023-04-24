@@ -3,8 +3,10 @@ import json
 import yaml
 import re
 from pathlib import Path
+from typing import Tuple
 from .utils import Udf_Type, is_assignment, parse_assignment, is_const_or_var, function_arg_decl, dbg_assert
 from .query import prepare_statement
+
 
 # GLOBAL const variables
 root_path = Path(__file__).parent
@@ -164,7 +166,7 @@ def translate_action(action: dict) -> str:
     return output
 
 
-def get_function_vars(datums: list, udf_str: str) -> tuple[list, list]:
+def get_function_vars(datums: list, udf_str: str) -> Tuple[list, list]:
     """
     Get the function arguments from the datums.
     Returns a tuple with a list of the formatted function arguments, and a

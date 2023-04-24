@@ -1,3 +1,5 @@
+from typing import Tuple
+
 def dbg_assert(cond: bool, msg: str):
     if not cond:
         raise Exception(msg)
@@ -54,8 +56,10 @@ class Udf_Type:
         "UNKNOWN": "UNKNOWN"
     }
 
+    
+
     @staticmethod
-    def resolve_type(type_name: str, udf_str: str) -> tuple[str, str]:
+    def resolve_type(type_name: str, udf_str: str) -> Tuple[str, str]:
         """
         Resolve a type name to a C++ type name and a type size.
         """

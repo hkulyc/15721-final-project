@@ -98,8 +98,8 @@ def translate_query(query: str, expected_type: Udf_Type, query_is_assignment : b
     # return f"initialization of {temp_str} = {query};", temp_str
     return 
 
-def translate_expr(expr: dict, expected_type: Udf_Type, query_is_assignment : bool) -> str:
-    print("translate_expr()",expr)
+def translate_expr(expr: dict, expected_type: Udf_Type, query_is_assignment : bool = False) -> str:
+    # print("translate_expr()",expr)
     if "query" in expr and len(expr) == 1:
         return translate_query(expr['query'], expected_type, query_is_assignment)
     else:
@@ -264,8 +264,8 @@ def get_function_vars(datums: list, udf_str: str) -> Tuple[list, list]:
                 gv.func_args.append((name, udf_type))
             else:
                 if "default_val" in var:
-                    query_result = translate_query(
-                        var["default_val"]["PLpgSQL_expr"]["query"], udf_type)
+                    query_result = translate_expr(
+                        var["default_val"]["PLpgSQL_expr"], udf_type)
                     initializations.append(
                         function_config["fdecl_var"].format(
                             type=udf_type.cpp_type, name=name,

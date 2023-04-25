@@ -44,6 +44,18 @@ def function_arg_decl(args, vars):
         arg_list.append(vars[arg][0].cpp_type + ' ' + arg)
     return ', '.join(arg_list)
     
+def substitute_variables(query: str, substitutes : dict) -> str:
+    tokens = query.split()
+    new_tokens = []
+    for token in tokens:
+        if token in substitutes:
+            new_tokens.append(substitutes[token])
+        else:
+            new_tokens.append(token)
+    return ' '.join(new_tokens)
+
+def is_loop_tempvar(var : str) -> bool:
+    return 'tempvar' in var
 
 class Udf_Type:
     duckdb_to_cpp_type = {

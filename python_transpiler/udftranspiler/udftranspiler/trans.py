@@ -4,7 +4,7 @@ import yaml
 import re
 from pathlib import Path
 from typing import Tuple
-from .utils import Udf_Type, parse_assignment, is_const_or_var, function_arg_decl, dbg_assert
+from .utils import Udf_Type, parse_assignment, is_const_or_var, function_arg_decl, dbg_assert, substitute_variables, is_loop_tempvar
 from .query import prepare_statement
 
 
@@ -26,6 +26,7 @@ with open(root_path/'control.yaml', 'r') as file:
 # GLOBAL VERSITILE variables
 class GV:
     function_count = 0
+    
     global_macros = ["/* GLOBAL MACROS */"]  # also has includes
     global_variables = ["/* GLOBAL VARIABLES */"]
     # non-udf utility functions (maybe need it)
@@ -37,6 +38,9 @@ class GV:
     func_name = ""
     func_return_type: Udf_Type = None
     query_macro = False
+
+    temp_var_count = 0 # fresh variables created for for-loops
+    temp_var_substitutes = {} # dictionary mapping var_name and their temp var substitutes
 gv = GV()
 
 def new_function():
@@ -44,6 +48,10 @@ def new_function():
     gv.function_count += 1
     return 'query'+str(gv.function_count)
     
+def new_variable():
+    "create a new variable, return the variable name"
+    gv.temp_var_count += 1
+    return 'tempvar'+str(gv.temp_var_count) # no variables can be prefixed with tempvar
 
 def translate_query(query: str, expected_type: Udf_Type, query_is_assignment : bool = False) -> str:
     """
@@ -52,8 +60,13 @@ def translate_query(query: str, expected_type: Udf_Type, query_is_assignment : b
     """
     # variable value assignment
     query = query.strip()
+    query = substitute_variables(query,gv.temp_var_substitutes)
     if query_is_assignment:
         leftv, rightv = parse_assignment(query, gv.func_vars)
+
+        if is_loop_tempvar(leftv): # ignores assignment to for-loop variable
+            return ''
+
         if is_const_or_var(rightv, gv.func_vars):
             return '{} = {}'.format(leftv, rightv)
         prep_statement, args = prepare_statement(rightv, gv.func_vars)
@@ -151,18 +164,56 @@ def translate_for_stmt(for_stmt: dict) -> str:
 
     # TODO: support REVERSE
 
+    """
+    
+    from postgres docs: 
+        The variable name is automatically defined as type integer and exists only 
+        inside the loop (any existing definition of the variable name is ignored 
+        within the loop). 
+
+    to handle this behavior:    
+        - `temp_var_name` substitutes all instance of `name` variable
+        - to handle nested loops with same loop variable name,
+          gv.temp_var_substitutes will be reversed upon loop exit
+        - also note that assignment to `temp_var_name` variables are ignored
+          because this has no effect on plpgsql for loops
+
+        also see translate_query()
+
+    """
+
     var = for_stmt["var"]["PLpgSQL_var"]
     name = var["refname"]
-    gv.func_vars[name] = (Udf_Type("INTEGER"), False)
+
+    temp_var_name = new_variable()
+
+    if name in gv.temp_var_substitutes:
+        prev_sub = gv.temp_var_substitutes[name]
+    else:
+        prev_sub = None
+
+    gv.temp_var_substitutes[name] = temp_var_name
+
+    dbg_assert(temp_var_name not in gv.func_vars and temp_var_name not in gv.temp_var_substitutes, f"temporary loop variable {temp_var_name} cannot be used elsewhere")
+
+    gv.func_vars[temp_var_name] = (Udf_Type("INTEGER"), False)
 
     params = {
         "body": translate_body(for_stmt['body']),
         "start": translate_expr(for_stmt["lower"]["PLpgSQL_expr"], Udf_Type("INTEGER"), False),
         "end": translate_expr(for_stmt["upper"]["PLpgSQL_expr"], Udf_Type("INTEGER"), False),
-        "name": name,
+        "name": temp_var_name,
         "step": translate_expr(for_stmt["step"]["PLpgSQL_expr"], Udf_Type("INTEGER"), False) if ("step" in for_stmt) else 1,
     }
     output += control_config['for'].format(**params)
+
+    del gv.func_vars[temp_var_name]
+
+    if prev_sub is None:
+        del gv.temp_var_substitutes[name]
+    else:
+        gv.temp_var_substitutes[name] = prev_sub
+
     return output
 
 def translate_while_stmt(while_stmt: dict) -> str:

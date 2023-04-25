@@ -4,7 +4,32 @@ BEGIN
 END; $$
 LANGUAGE PLPGSQL;
 
-CREATE FUNCTION simple_loop(x integer) RETURNS INTEGER AS $$
+CREATE FUNCTION exit_loop() RETURNS INTEGER AS $$
+declare i integer = 0;
+BEGIN
+    LOOP
+        
+        EXIT;  -- exit loop
+        i = 5;
+        
+    END LOOP;
+    RETURN i;
+END; $$
+LANGUAGE PLPGSQL;
+
+CREATE FUNCTION continue_loop() RETURNS INTEGER AS $$
+declare i integer = 0;
+BEGIN
+    while i < 10 LOOP
+        i = i + 1;
+        CONTINUE;
+        i = i + 2;
+    END LOOP;
+    RETURN i;
+END; $$
+LANGUAGE PLPGSQL;
+
+CREATE FUNCTION simple_loop() RETURNS INTEGER AS $$
 declare i integer = 0;
 BEGIN
     LOOP
@@ -15,7 +40,7 @@ BEGIN
         
         END IF;
     END LOOP;
-    RETURN x;
+    RETURN i;
 END; $$
 LANGUAGE PLPGSQL;
 
@@ -28,27 +53,37 @@ LANGUAGE PLPGSQL;
 --     EXIT WHEN count > 0;
 -- END LOOP;
 
-CREATE FUNCTION for_loop_vanilla(x integer) RETURNS INTEGER AS $$
+CREATE FUNCTION for_loop_vanilla() RETURNS INTEGER AS $$
 declare i integer = 0;
 BEGIN
     FOR j IN 1..10 LOOP
         i = i + 1;
     END LOOP;
-    RETURN x;
+    RETURN i;
 END; $$
 LANGUAGE PLPGSQL;
 
-CREATE FUNCTION for_loop_step(x integer) RETURNS INTEGER AS $$
+CREATE FUNCTION for_loop_step() RETURNS INTEGER AS $$
 declare i integer = 0;
 BEGIN
     FOR j IN 1..10 BY 2 LOOP
         i = i + 1;
     END LOOP;
-    RETURN x;
+    RETURN i;
 END; $$
 LANGUAGE PLPGSQL;
 
-CREATE FUNCTION for_loop_variable_shadow(x integer) RETURNS INTEGER AS $$
+CREATE FUNCTION for_loop_reverse() RETURNS INTEGER AS $$
+declare i integer = 0;
+BEGIN
+    FOR j IN REVERSE 10..1 LOOP
+        i = i + 1;
+    END LOOP;
+    RETURN i;
+END; $$
+LANGUAGE PLPGSQL;
+
+CREATE FUNCTION for_loop_variable_shadow() RETURNS INTEGER AS $$
 declare j integer = 5;
 declare acc integer = 0;
 BEGIN
@@ -59,7 +94,7 @@ BEGIN
 END; $$
 LANGUAGE PLPGSQL;
 
-CREATE FUNCTION for_loop_variable_shadow2(x integer) RETURNS INTEGER AS $$
+CREATE FUNCTION for_loop_variable_shadow2() RETURNS INTEGER AS $$
 declare j integer = 5;
 BEGIN
     FOR j IN 1..10 LOOP
@@ -72,7 +107,7 @@ LANGUAGE PLPGSQL;
 
 drop function for_loop_variable_shadow3;
 
-CREATE FUNCTION for_loop_variable_shadow3(x integer) RETURNS INTEGER AS $$
+CREATE FUNCTION for_loop_variable_shadow3() RETURNS INTEGER AS $$
 declare acc integer = 0;
 BEGIN
     FOR j IN 1..10 LOOP
@@ -84,7 +119,7 @@ BEGIN
 END; $$
 LANGUAGE PLPGSQL;
 
-CREATE FUNCTION for_loop_variable_shadow_nested(x integer) RETURNS INTEGER AS $$
+CREATE FUNCTION for_loop_variable_shadow_nested() RETURNS INTEGER AS $$
 declare j integer = 5;
 declare acc integer = 0;
 BEGIN
@@ -98,13 +133,13 @@ BEGIN
 END; $$
 LANGUAGE PLPGSQL;
 
-CREATE FUNCTION while_loop(x integer) RETURNS INTEGER AS $$
+CREATE FUNCTION while_loop() RETURNS INTEGER AS $$
 declare i integer = 0;
 BEGIN
     while i < 10 LOOP
         i = i + 1;
     END LOOP;
-    RETURN x;
+    RETURN i;
 END; $$
 LANGUAGE PLPGSQL;
 
@@ -113,4 +148,4 @@ drop table test;
 
 CREATE TABLE test (id integer, num integer);
 INSERT INTO test VALUES (1,2),(2,4),(3,6),(4,8),(5,10);
-select id,for_loop_variable_shadow3(test.num) from test;
+select id,for_loop_reverse() from test;

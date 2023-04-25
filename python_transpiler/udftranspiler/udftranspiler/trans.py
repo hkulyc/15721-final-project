@@ -68,7 +68,7 @@ def translate_query(query: str, expected_type: Udf_Type, query_is_assignment : b
             return ''
 
         if is_const_or_var(rightv, gv.func_vars):
-            return '{} = {}'.format(leftv, rightv)
+            return '{} = {};'.format(leftv, rightv)
         prep_statement, args = prepare_statement(rightv, gv.func_vars)
         params = {
             'db_name': 'db',
@@ -185,27 +185,34 @@ def translate_for_stmt(for_stmt: dict) -> str:
     var = for_stmt["var"]["PLpgSQL_var"]
     name = var["refname"]
 
-    temp_var_name = new_variable()
-
     if name in gv.temp_var_substitutes:
         prev_sub = gv.temp_var_substitutes[name]
     else:
         prev_sub = None
 
+    temp_var_name = new_variable()
     gv.temp_var_substitutes[name] = temp_var_name
-
     dbg_assert(temp_var_name not in gv.func_vars and temp_var_name not in gv.temp_var_substitutes, f"temporary loop variable {temp_var_name} cannot be used elsewhere")
-
     gv.func_vars[temp_var_name] = (Udf_Type("INTEGER"), False)
+
+    is_reverse = "reverse" in for_stmt
+    if is_reverse:
+        dbg_assert(for_stmt["reverse"],"reverse must be true")
+
+    step_size = translate_expr(for_stmt["step"]["PLpgSQL_expr"], Udf_Type("INTEGER"), False) if "step" in for_stmt else "1"
+    try:
+        dbg_assert(int(step_size) > 0, "Step size must be positive")
+    except ValueError:
+        raise Exception("step_size is not integer")
 
     params = {
         "body": translate_body(for_stmt['body']),
         "start": translate_expr(for_stmt["lower"]["PLpgSQL_expr"], Udf_Type("INTEGER"), False),
         "end": translate_expr(for_stmt["upper"]["PLpgSQL_expr"], Udf_Type("INTEGER"), False),
         "name": temp_var_name,
-        "step": translate_expr(for_stmt["step"]["PLpgSQL_expr"], Udf_Type("INTEGER"), False) if ("step" in for_stmt) else 1,
+        "step":  step_size,
     }
-    output += control_config['for'].format(**params)
+    output += control_config['revfor' if is_reverse else 'for'].format(**params)
 
     del gv.func_vars[temp_var_name]
 
@@ -229,6 +236,17 @@ def translate_while_stmt(while_stmt: dict) -> str:
     output += control_config['while'].format(**params)
     return output
 
+def translate_exitcont_stmt(exitcont_stmt: dict) -> str:
+    """
+    Transpile a exit/continue statement from PL/pgSQL to C++.
+    """
+
+    if "is_exit" in exitcont_stmt:
+       dbg_assert(exitcont_stmt["is_exit"],"is_exit must be true")
+       return "break;"
+    else:
+       return "continue;"
+ 
 
 def translate_body(body: list, expected_type: Udf_Type = None) -> str:
     """
@@ -262,6 +280,9 @@ def translate_body(body: list, expected_type: Udf_Type = None) -> str:
             output += translate_for_stmt(stmt["PLpgSQL_stmt_fori"])
         elif ("PLpgSQL_stmt_while" in stmt):
             output += translate_while_stmt(stmt["PLpgSQL_stmt_while"])
+        elif ("PLpgSQL_stmt_exit" in stmt):
+            output += translate_exitcont_stmt(stmt["PLpgSQL_stmt_exit"])
+
         else:
             raise Exception("Unknown statement type: {}".format(str(stmt)))
         

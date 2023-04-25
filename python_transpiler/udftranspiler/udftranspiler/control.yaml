@@ -13,3 +13,9 @@ for: |-
     {body}
   }}
 
+
+revfor: |- 
+  for (int {name} = {start}; {name} >= {end}; {name} -= {step}){{
+    {body}
+  }}
+

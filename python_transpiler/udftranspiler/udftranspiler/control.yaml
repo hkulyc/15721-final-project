@@ -19,3 +19,22 @@ revfor: |-
     {body}
   }}
 
+
+
+
+if_block: |-
+  if({condition}) {{
+    {then_body}
+  }}
+  {elseifs}
+  {else}
+
+else_if: |-
+  else if ({condition}) {{
+    {then_body}
+  }}
+
+else: |-
+  else {{
+    {else_body}
+  }}

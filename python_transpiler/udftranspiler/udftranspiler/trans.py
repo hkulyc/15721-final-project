@@ -24,9 +24,11 @@ with open(root_path/'control.yaml', 'r') as file:
 ################################################
 
 # GLOBAL VERSITILE variables
+
+
 class GV:
     function_count = 0
-    
+
     global_macros = ["/* GLOBAL MACROS */"]  # also has includes
     global_variables = ["/* GLOBAL VARIABLES */"]
     # non-udf utility functions (maybe need it)
@@ -39,32 +41,38 @@ class GV:
     func_return_type: Udf_Type = None
     query_macro = False
 
-    temp_var_count = 0 # fresh variables created for for-loops
-    temp_var_substitutes = {} # dictionary mapping var_name and their temp var substitutes
+    temp_var_count = 0  # fresh variables created for for-loops
+    temp_var_substitutes = {}  # dictionary mapping var_name and their temp var substitutes
+
+
 gv = GV()
+
 
 def new_function():
     "create a new function, return the function name"
     gv.function_count += 1
     return 'query'+str(gv.function_count)
-    
+
+
 def new_variable():
     "create a new variable, return the variable name"
     gv.temp_var_count += 1
-    return 'tempvar'+str(gv.temp_var_count) # no variables can be prefixed with tempvar
+    # no variables can be prefixed with tempvar
+    return 'tempvar'+str(gv.temp_var_count)
 
-def translate_query(query: str, expected_type: Udf_Type, query_is_assignment : bool = False) -> str:
+
+def translate_query(query: str, expected_type: Udf_Type, query_is_assignment: bool = False) -> str:
     """
     Transpile a query statement.
     This will return a string that initializes the temp, and the temp name.
     """
     # variable value assignment
     query = query.strip()
-    query = substitute_variables(query,gv.temp_var_substitutes)
+    query = substitute_variables(query, gv.temp_var_substitutes)
     if query_is_assignment:
         leftv, rightv = parse_assignment(query, gv.func_vars)
 
-        if is_loop_tempvar(leftv): # ignores assignment to for-loop variable
+        if is_loop_tempvar(leftv):  # ignores assignment to for-loop variable
             return ''
 
         if is_const_or_var(rightv, gv.func_vars):
@@ -104,26 +112,28 @@ def translate_query(query: str, expected_type: Udf_Type, query_is_assignment : b
         gv.global_variables.append(query_config['global'].format(**params))
         gv.global_functions.append(query_config['function'].format(**params))
         return '{}'.format(query_config['function_call'].format(**params))
-        
+
     # print(query_config['global'].format(**params))
     # temp_str = f"t{gv.temp_count}"
     # gv.temp_count += 1
     # return f"initialization of {temp_str} = {query};", temp_str
-    return 
+    return
 
-def translate_expr(expr: dict, expected_type: Udf_Type, query_is_assignment : bool = False) -> str:
+
+def translate_expr(expr: dict, expected_type: Udf_Type, query_is_assignment: bool = False) -> str:
     # print("translate_expr()",expr)
     if "query" in expr and len(expr) == 1:
         return translate_query(expr['query'], expected_type, query_is_assignment)
     else:
         raise Exception('Unsupport PLpgSQL_expr: {}'.format(expr))
-    
+
+
 def translate_assign_stmt(stmt: dict) -> str:
     # example: {'lineno': 5, 'varno': 3, 'expr': {'PLpgSQL_expr': {'query': 'pd2 := pd'}}
     # other possible fields: lineno, varno
     stmt = stmt['expr']
-    dbg_assert("PLpgSQL_expr" in stmt, 'assignment must be in form of expression')
-    
+    dbg_assert("PLpgSQL_expr" in stmt,
+               'assignment must be in form of expression')
 
     return translate_expr(stmt["PLpgSQL_expr"], None, True)
 
@@ -133,7 +143,8 @@ def translate_return_stmt(return_stmt: dict) -> str:
     Transpile a return statement from PL/pgSQL to C++.
     """
     # supported field lineno, expr
-    dbg_assert(len(return_stmt) == 2, "return_stmt should only have lineno and expr")
+    dbg_assert(len(return_stmt) == 2,
+               "return_stmt should only have lineno and expr")
     output = "return "
     return output+translate_body([return_stmt['expr']], gv.func_return_type)+';\n'
 
@@ -143,7 +154,45 @@ def translate_if_stmt(if_stmt: dict) -> str:
     Transpile an if statement from PL/pgSQL to C++.
     """
     output = ""
+    dbg_assert("cond" in if_stmt, "if_stmt should have cond")
+    cond_exp = translate_body([if_stmt['cond']], Udf_Type("BOOLEAN"))
+    then_body = ""
+    elseifs = ""
+    else_ = ""
+
+    if "then_body" in if_stmt:
+        then_body = translate_body(if_stmt['then_body'])
+
+    if "elsif_list" in if_stmt:
+        for elseif_outer in if_stmt['elsif_list']:
+            dbg_assert("PLpgSQL_if_elsif" in elseif_outer,
+                       "elsif should be PLpgSQL_if_elsif")
+            elseif = elseif_outer['PLpgSQL_if_elsif']
+            dbg_assert("cond" in elseif, "elseif should have cond")
+            if "stmts" in elseif:
+                elseif_then_body = translate_body(elseif['stmts'])
+            else:
+                elseif_then_body = ""
+            elseifs += control_config['else_if'].format(
+                condition=translate_body(
+                    [elseif['cond']], Udf_Type("BOOLEAN")),
+                then_body=elseif_then_body
+            )
+            elseifs += "\n"
+
+    if "else_body" in if_stmt:
+        else_ = control_config['else'].format(
+            else_body=translate_body(if_stmt['else_body']))
+
+    params = {
+        "condition": cond_exp,
+        "then_body": then_body,
+        "elseifs": elseifs,
+        "else": else_
+    }
+    output += control_config['if_block'].format(**params)
     return output
+
 
 def translate_loop_stmt(loop_stmt: dict) -> str:
     """
@@ -155,6 +204,7 @@ def translate_loop_stmt(loop_stmt: dict) -> str:
     }
     output += control_config['simple'].format(**params)
     return output
+
 
 def translate_for_stmt(for_stmt: dict) -> str:
     """
@@ -192,14 +242,16 @@ def translate_for_stmt(for_stmt: dict) -> str:
 
     temp_var_name = new_variable()
     gv.temp_var_substitutes[name] = temp_var_name
-    dbg_assert(temp_var_name not in gv.func_vars and temp_var_name not in gv.temp_var_substitutes, f"temporary loop variable {temp_var_name} cannot be used elsewhere")
+    dbg_assert(temp_var_name not in gv.func_vars and temp_var_name not in gv.temp_var_substitutes,
+               f"temporary loop variable {temp_var_name} cannot be used elsewhere")
     gv.func_vars[temp_var_name] = (Udf_Type("INTEGER"), False)
 
     is_reverse = "reverse" in for_stmt
     if is_reverse:
-        dbg_assert(for_stmt["reverse"],"reverse must be true")
+        dbg_assert(for_stmt["reverse"], "reverse must be true")
 
-    step_size = translate_expr(for_stmt["step"]["PLpgSQL_expr"], Udf_Type("INTEGER"), False) if "step" in for_stmt else "1"
+    step_size = translate_expr(for_stmt["step"]["PLpgSQL_expr"], Udf_Type(
+        "INTEGER"), False) if "step" in for_stmt else "1"
     try:
         dbg_assert(int(step_size) > 0, "Step size must be positive")
     except ValueError:
@@ -212,7 +264,8 @@ def translate_for_stmt(for_stmt: dict) -> str:
         "name": temp_var_name,
         "step":  step_size,
     }
-    output += control_config['revfor' if is_reverse else 'for'].format(**params)
+    output += control_config['revfor' if is_reverse else 'for'].format(
+        **params)
 
     del gv.func_vars[temp_var_name]
 
@@ -222,6 +275,7 @@ def translate_for_stmt(for_stmt: dict) -> str:
         gv.temp_var_substitutes[name] = prev_sub
 
     return output
+
 
 def translate_while_stmt(while_stmt: dict) -> str:
     """
@@ -236,17 +290,18 @@ def translate_while_stmt(while_stmt: dict) -> str:
     output += control_config['while'].format(**params)
     return output
 
+
 def translate_exitcont_stmt(exitcont_stmt: dict) -> str:
     """
     Transpile a exit/continue statement from PL/pgSQL to C++.
     """
 
     if "is_exit" in exitcont_stmt:
-       dbg_assert(exitcont_stmt["is_exit"],"is_exit must be true")
-       return "break;"
+        dbg_assert(exitcont_stmt["is_exit"], "is_exit must be true")
+        return "break;"
     else:
-       return "continue;"
- 
+        return "continue;"
+
 
 def translate_body(body: list, expected_type: Udf_Type = None) -> str:
     """
@@ -266,13 +321,12 @@ def translate_body(body: list, expected_type: Udf_Type = None) -> str:
             output += translate_if_stmt(stmt["PLpgSQL_stmt_if"])
         elif ("PLpgSQL_stmt_return" in stmt):
             output += translate_return_stmt(stmt["PLpgSQL_stmt_return"])
-        
         elif ("PLpgSQL_expr" in stmt):
-            output += translate_expr(stmt["PLpgSQL_expr"], expected_type, False)
-
+            output += translate_expr(stmt["PLpgSQL_expr"],
+                                     expected_type, False)
         elif ("PLpgSQL_stmt_assign" in stmt):
             output += translate_assign_stmt(stmt["PLpgSQL_stmt_assign"])
-        
+
         # loop
         elif ("PLpgSQL_stmt_loop" in stmt):
             output += translate_loop_stmt(stmt["PLpgSQL_stmt_loop"])
@@ -285,9 +339,9 @@ def translate_body(body: list, expected_type: Udf_Type = None) -> str:
 
         else:
             raise Exception("Unknown statement type: {}".format(str(stmt)))
-        
+
         # TODO: support EXIT and CONTINUE
-        
+
         is_first = False
     return output
 

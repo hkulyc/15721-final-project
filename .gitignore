@@ -20,3 +20,8 @@ test/
 tests/
 
 parse_dump.json
+
+*.o
+*.tbl
+tpch-kit/dbgen/dbgen
+tpch-kit/dbgen/qgen

@@ -18,5 +18,7 @@ poc/poc
 udf_transpiler/env/
 test/
 tests/
-
+poc/poc
+poc/Makefile
 parse_dump.json
+poc/CMakeLists.txt

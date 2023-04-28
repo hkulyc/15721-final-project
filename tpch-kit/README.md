@@ -1,94 +1,47 @@
-tpch-kit
-========
+# How to use TPC-H
 
-TPC-H benchmark kit with some modifications/additions
+## Basic Overview
+- `dbgen` folder contains the code for generating TPC-H data and queries
+- Data is already generated. They're placed in `tpch-kit/dbgen-output` folder. Ignore 
+- Queries are already generated. They're placed in the `tpch-kit/queries` folder. 
+  - `tpch-q<number>.sql` is the sql file for query number `<number>`. 
+  - `tpch-stream.sql` is a single sql file containing all the queries.
 
-Official TPC-H benchmark - [http://www.tpc.org/tpch](http://www.tpc.org/tpch)
+## Run TPC-H benchmark on Postgres database
+- You do not need to use `dbgen`'s tools because I have already created the data and queries.
+- You will need postgres on your machine and be able to call it via `psql`
+- See right below for steps to run TPC-H.
 
-## Modifications
+`cd` into `tpch-kit` directory
 
-The following modifications have been added on top of the official TPC-H kit:
-
-* modify `dbgen` to not print trailing delimiter
-* add option for `dbgen` to output to stdout
-* add compile support for macOS
-* add define for PostgreSQL to support `LIMIT N` for `qgen`
-* adjust `Makefile` defaults
-
-## Setup
-
-### Linux
-
-Make sure the required development tools are installed:
-
-Ubuntu:
+Create postgres database named `tpch`, and load it with tpch schema
 ```
-sudo apt-get install git make gcc
+createdb tpch
+psql tpch -f dbgen/dss.ddl
 ```
 
-CentOS/RHEL:
+To load TPC-H data into the `tpch` postgres database you just created,
 ```
-sudo yum install git make gcc
-```
-
-Then run the following commands to clone the repo and build the tools:
-
-```
-git clone https://github.com/gregrahn/tpch-kit.git
-cd tpch-kit/dbgen
-make MACHINE=LINUX DATABASE=POSTGRESQL
+cd dbgen-output
+sh ../populate.sh
+cd ..
 ```
 
-### macOS
-
-Make sure the required development tools are installed:
-
+To run the `query#`th TPC-H query (this is where you're actually running the TPC-H benchmark),
 ```
-xcode-select --install
+psql tpch < queries/tpch-q<query#>.sql
 ```
 
-Then run the following commands to clone the repo and build the tools:
 
-```
-git clone https://github.com/gregrahn/tpch-kit.git
-cd tpch-kit/dbgen
-make MACHINE=MACOS DATABASE=POSTGRESQL
-```
+## Run TPC-H benchmark on DuckDB database
+- Not implemented yet, but should be similar as Postgres
 
-## Using the TPC-H tools
 
-### Environment
+## TPC-H queries using UDF
+- Query 19 (`tpch-kit/queries/tpch-q19.sql`) has been translated into UDF format in the file `tpch-kit/queries/udf-q19.sql`. The same exact file is included in `python_transpiler/samples`.
 
-Set these env variables correctly:
 
-```
-export DSS_CONFIG=/.../tpch-kit/dbgen
-export DSS_QUERY=$DSS_CONFIG/queries
-export DSS_PATH=/path-to-dir-for-output-files
-```
+## Useful references:
 
-### SQL dialect
-
-See `Makefile` for the valid `DATABASE` values.  Details for each dialect can be found in `tpcd.h`.  Adjust the query templates in `tpch-kit/dbgen/queries` as need be.
-
-### Data generation
-
-Data generation is done via `dbgen`.  See `dbgen -h` for all options.  The environment variable `DSS_PATH` can be used to set the desired output location.
-
-### Query generation
-
-Query generation is done via `qgen`.  See `qgen -h` for all options.
-
-The following command can be used to generate all 22 queries in numerical order for the 1GB scale factor (`-s 1`) using the default substitution variables (`-d`).
-
-```
-qgen -v -c -d -s 1 > tpch-stream.sql
-```
-
-To generate one query per file for SF 3000 (3TB) use:
-
-```
-for ((i=1;i<=22;i++)); do
-  ./qgen -v -c -s 3000 ${i} > /tmp/sf3000/tpch-q${i}.sql
-done
-```
+- https://ankane.org/tpc-h
+- https://github.com/gregrahn/tpch-kit

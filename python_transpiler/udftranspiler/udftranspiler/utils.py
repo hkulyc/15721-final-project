@@ -63,13 +63,16 @@ class Udf_Type:
         "TINYINT": "int8_t",
         "SMALLINT": "int16_t",
         "INTEGER": "int32_t",
+        "INT": "int32_t", # alias of INTEGER
         "BIGINT": "int64_t",
         "FLOAT": "double",
         "DOUBLE": "double",
         "VARCHAR": "string_t",
         "CHAR": "string_t",
         "BLOB": "string_t",
-        "UNKNOWN": "UNKNOWN"
+        "UNKNOWN": "UNKNOWN",
+        "DECIMAL":"double", # not actually supported
+        
     }
 
     
@@ -90,6 +93,7 @@ class Udf_Type:
             type_name = udf_str[type_start:type_end]
         type_name = type_name.upper()
         type_name = type_name.replace(" ", "")
+        print("type_name",type_name)
         if type_name in Udf_Type.duckdb_to_cpp_type:
             return type_name, Udf_Type.duckdb_to_cpp_type[type_name]
         else:

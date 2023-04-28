@@ -1,3 +1,6 @@
+# for printing queries (.sql file) in literal form to see what escape characters
+# are used for spacing
+
 file = open('queries/tpch-q2.sql',mode='r')
  
 # read all lines at once

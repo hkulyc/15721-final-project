@@ -48,7 +48,7 @@ def parse_sql_query(sql: str):
         raise Exception("Failed to parse sql query: ", e)
         return
     
-def prepare_statement(query: str, vars: dict):
+def prepare_statement(query: str, vars: dict, vector_size: int):
     "transform a sql query with possible variable to prepared statement"
     # first try to parse the query (trial run)
     try:
@@ -71,12 +71,15 @@ def prepare_statement(query: str, vars: dict):
             raise Exception('Variable {} is not defined'.format(var))
         prep_statement.append(query[pre:loc])
         if var not in var_map:
-            prep_statement.append('$'+str(len(args)+1))
-            var_map[var] = '$'+str(len(args)+1)
+            prep_statement.append('col'+str(len(args)))
+            var_map[var] = 'col'+str(len(args))
             args.append(var)
         else:
             prep_statement.append(var_map[var])
         pre = loc + len(var)
     prep_statement.append(query[pre:])
+    args_len = len(args)
+    from_stmt = ' from (values {})'.format(', '.join(['({})'.format(', '.join(['$'+str(i*vector_size + j+1) for i in range(args_len)])) for j in range(vector_size)]))
+    prep_statement.append(from_stmt)
     # print(''.join(prep_statement))
     return ''.join(prep_statement), args

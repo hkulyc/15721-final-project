@@ -57,6 +57,10 @@ def substitute_variables(query: str, substitutes : dict) -> str:
 def is_loop_tempvar(var : str) -> bool:
     return 'tempvar' in var
 
+def add_identition(code: str, iden: str = '    '):
+    "Add identition to each line to make the generated code look prettier"
+    return iden+code.replace('\n', '\n'+iden)
+
 class Udf_Type:
     duckdb_to_cpp_type = {
         "BOOLEAN": "bool",

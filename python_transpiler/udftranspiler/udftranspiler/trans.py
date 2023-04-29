@@ -4,7 +4,7 @@ import yaml
 import re
 from pathlib import Path
 from typing import Tuple
-from .utils import Udf_Type, parse_assignment, is_const_or_var, function_arg_decl, dbg_assert, substitute_variables, is_loop_tempvar
+from .utils import Udf_Type, parse_assignment, is_const_or_var, function_arg_decl, dbg_assert, substitute_variables, is_loop_tempvar, add_identition
 from .query import prepare_statement
 
 
@@ -34,6 +34,7 @@ class GV:
     # non-udf utility functions (maybe need it)
     global_functions = ["/* GLOBAL FUNCTIONS */"]
     # temp_count = 0
+    vector_size = 2048
     func_args = []  # list of (arg_name, Udf_Type)
     func_vars = {}  # variables in the current function
     # will contain a dictionary with mapping from var_name -> (Udf_Type, initialized?)
@@ -61,57 +62,41 @@ def new_variable():
     return 'tempvar'+str(gv.temp_var_count)
 
 
-def translate_query(query: str, expected_type: Udf_Type, query_is_assignment: bool = False) -> str:
+def translate_query(query: str, query_is_assignment: bool) -> str:
     """
     Transpile a query statement.
     This will return a string that initializes the temp, and the temp name.
     """
-    # variable value assignment
-    query = query.strip()
-    query = substitute_variables(query, gv.temp_var_substitutes)
+    # if assignment, only parse the right value
     if query_is_assignment:
-        leftv, rightv = parse_assignment(query, gv.func_vars)
-
-        if is_loop_tempvar(leftv):  # ignores assignment to for-loop variable
-            return ''
-
-        if is_const_or_var(rightv, gv.func_vars):
-            return '{} = {};'.format(leftv, rightv)
-        prep_statement, args = prepare_statement(rightv, gv.func_vars)
-        params = {
-            'db_name': 'db',
-            'query_formatter': prep_statement,
-            'return_type': gv.func_vars[leftv][0].cpp_type,
-            'function_name': new_function(),
-            'function_args': function_arg_decl(args, gv.func_vars),
-            'prepare_args': ', '.join(args)
-        }
-        if not gv.query_macro:
-            gv.global_macros.append(query_config['macro'].format(**params))
-            gv.query_macro = True
-        gv.global_variables.append(query_config['global'].format(**params))
-        gv.global_functions.append(query_config['function'].format(**params))
-        return '{} = {};'.format(leftv, query_config['function_call'].format(**params))
-
-    # directly returning a value based on the expected_type
-    else:
-        if is_const_or_var(query, gv.func_vars):
-            return '{}'.format(query)
-        prep_statement, args = prepare_statement(query, gv.func_vars)
-        params = {
-            'db_name': 'db',
-            'query_formatter': prep_statement,
-            'return_type': expected_type.cpp_type,
-            'function_name': new_function(),
-            'function_args': function_arg_decl(args, gv.func_vars),
-            'prepare_args': ', '.join(args)
-        }
-        if not gv.query_macro:
-            gv.global_macros.append(query_config['macro'].format(**params))
-            gv.query_macro = True
-        gv.global_variables.append(query_config['global'].format(**params))
-        gv.global_functions.append(query_config['function'].format(**params))
-        return '{}'.format(query_config['function_call'].format(**params))
+        query = parse_assignment(query, gv.func_vars)[1]
+    query = query.strip()
+    # todo: this substitute is suspectable to errors
+    # query = substitute_variables(query, gv.temp_var_substitutes)
+    
+    if is_const_or_var(query, gv.func_vars):
+        return '{}'.format(query)
+    prep_statement, args = prepare_statement(query, gv.func_vars, gv.vector_size)
+    
+    function_arg_temp = query_config['function_arg']
+    function_args = ', '.join([function_arg_temp.format(i) for i in range(len(args))])
+    params = {
+        'db_name': 'db',
+        'prep_statement': prep_statement,
+        'function_name': new_function(),
+        'function_args': function_args,
+        'prepare_args': ', '.join(args),
+        'vector_size': gv.vector_size,
+        # 'args_count': len(args),
+        'input_size': gv.vector_size*len(args)
+    }
+    params['prepare_input'] = add_identition('\n'.join([query_config['prepare_input'].format(**params, arg = arg) for arg in range(len(args))]))
+    if not gv.query_macro:
+        gv.global_macros.append(query_config['macro'].format(**params))
+        gv.query_macro = True
+    gv.global_variables.append(query_config['global'].format(**params))
+    gv.global_functions.append(query_config['function'].format(**params))
+    return '{}'.format(query_config['function_call'].format(**params))
 
     # print(query_config['global'].format(**params))
     # temp_str = f"t{gv.temp_count}"
@@ -123,7 +108,7 @@ def translate_query(query: str, expected_type: Udf_Type, query_is_assignment: bo
 def translate_expr(expr: dict, expected_type: Udf_Type, query_is_assignment: bool = False) -> str:
     # print("translate_expr()",expr)
     if "query" in expr and len(expr) == 1:
-        return translate_query(expr['query'], expected_type, query_is_assignment)
+        return translate_query(expr['query'], query_is_assignment)
     else:
         raise Exception('Unsupport PLpgSQL_expr: {}'.format(expr))
 
@@ -134,7 +119,7 @@ def translate_assign_stmt(stmt: dict) -> str:
     stmt = stmt['expr']
     dbg_assert("PLpgSQL_expr" in stmt,
                'assignment must be in form of expression')
-
+    # todo: need to prepare the left value and '='
     return translate_expr(stmt["PLpgSQL_expr"], None, True)
 
 

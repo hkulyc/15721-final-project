@@ -15,8 +15,8 @@ def parse_assignment(query: str, vars: dict):
     if ":=" in query:
         v_list = query.split(':=')
     else:
-        v_list = query.split('=', 1)
-
+        v_list = query.split('=')
+    # print(v_list)
     dbg_assert(len(v_list) == 2, 'bad assignment: {}'.format(query))
     leftv = v_list[0].strip()
     dbg_assert(leftv in vars,
@@ -125,7 +125,7 @@ class Udf_Type:
         return self.duckdb_type == "UNKNOWN"
 
     def get_cpp_sqltype(self):
-        return f"SQLType::{self.duckdb_type}"
+        return f"duckdb::LogicalType::{self.duckdb_type}"
 
 
 class ActiveLanes:
@@ -189,3 +189,21 @@ class ActiveLanes:
 
     def pop_returns(self):
         return self.returns.pop(0)
+    
+    def __get_mask_pointer(self, name: str):
+        if name == None:
+            return 'NULL'
+        else:
+            return '&'+name
+    
+    def get_mask_pointers(self):
+        "get a list of names of pointers to the four masks"
+        return [self.__get_mask_pointer(self.get_active()), \
+                    self.__get_mask_pointer(self.get_returns()), \
+                    self.__get_mask_pointer(self.get_loop_active()), \
+                    self.__get_mask_pointer(self.get_continues())]
+
+    
+    def get_mask_names(self):
+        "get a list of names of the four masks"
+        return [self.get_active(), self.get_returns(), self.get_loop_active() or 'NULL', self.get_continues() or 'NULL']

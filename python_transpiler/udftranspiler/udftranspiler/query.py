@@ -29,6 +29,7 @@ class QueryTraverser(Visitor):
 
 def parse_sql_query(sql: str):
     "Parse a sql query with restrictions."
+    # print(sql)
     try:
         # translate_query(None, None)
         tmp = pglast.parse_sql(sql)

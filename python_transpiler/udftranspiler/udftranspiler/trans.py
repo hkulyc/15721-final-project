@@ -62,12 +62,13 @@ def new_variable():
     return 'tempvar'+str(gv.temp_var_count)
 
 
-def translate_query(query: str, query_is_assignment: bool) -> str:
+def translate_query(query: str, active_lanes: ActiveLanes, query_is_assignment: bool) -> str:
     """
     Transpile a query statement.
     This will return a string that initializes the temp, and the temp name.
     """
     # if assignment, only parse the right value
+    # print(query)
     if query_is_assignment:
         query = parse_assignment(query, gv.func_vars)[1]
     query = query.strip()
@@ -75,7 +76,7 @@ def translate_query(query: str, query_is_assignment: bool) -> str:
     # query = substitute_variables(query, gv.temp_var_substitutes)
 
     if is_const_or_var(query, gv.func_vars):
-        return '{}'.format(query)
+        return '{}({})'.format('const_vector_gen', query)
     prep_statement, args = prepare_statement(
         query, gv.func_vars, gv.vector_size)
 
@@ -87,7 +88,7 @@ def translate_query(query: str, query_is_assignment: bool) -> str:
         'prep_statement': prep_statement,
         'function_name': new_function(),
         'function_args': function_args,
-        'prepare_args': ', '.join(args),
+        'prepare_args': ', '.join(args+active_lanes.get_mask_pointers()),
         'vector_size': gv.vector_size,
         # 'args_count': len(args),
         'input_size': gv.vector_size*len(args)
@@ -108,10 +109,10 @@ def translate_query(query: str, query_is_assignment: bool) -> str:
     return
 
 
-def translate_expr(expr: dict, active_lanes: ActiveLanes, expected_type: Udf_Type, query_is_assignment: bool = False) -> str:
+def translate_expr(expr: dict, active_lanes: ActiveLanes, query_is_assignment: bool = False) -> str:
     # print("translate_expr()",expr)
     if "query" in expr and len(expr) == 1:
-        return translate_query(expr['query'], query_is_assignment)
+        return translate_query(expr['query'], active_lanes, query_is_assignment)
     else:
         raise Exception('Unsupport PLpgSQL_expr: {}'.format(expr))
 
@@ -123,7 +124,8 @@ def translate_assign_stmt(stmt: dict, active_lanes: ActiveLanes) -> str:
     dbg_assert("PLpgSQL_expr" in stmt,
                'assignment must be in form of expression')
     # todo: need to prepare the left value and '='
-    return "TODO_ADD_VAR = " + translate_expr(stmt["PLpgSQL_expr"], None, True) + ";"
+    left = parse_assignment(stmt["PLpgSQL_expr"]['query'], gv.func_vars)[0]
+    return left + " = " + translate_expr(stmt["PLpgSQL_expr"], active_lanes, True) + ";"
 
 
 def translate_return_stmt(return_stmt: dict, active_lanes: ActiveLanes) -> str:
@@ -319,7 +321,7 @@ def translate_while_stmt(while_stmt: dict, active_lanes: ActiveLanes) -> str:
         "return_mask_var": active_lanes.get_returns(),
         "loop_active_var": new_loop_active,
         "continued_var": new_continues,
-        "condition": translate_expr(while_stmt["cond"]["PLpgSQL_expr"], Udf_Type("BOOLEAN"), False),
+        "condition": translate_expr(while_stmt["cond"]["PLpgSQL_expr"], active_lanes, False),
         "body": translate_body(while_stmt['body'], active_lanes)
     }
     output += control_config['while'].format(**params)
@@ -368,8 +370,7 @@ def translate_body(body: list, active_lanes: ActiveLanes, expected_type: Udf_Typ
             output += translate_return_stmt(
                 stmt["PLpgSQL_stmt_return"], active_lanes)
         elif ("PLpgSQL_expr" in stmt):
-            output += translate_expr(stmt["PLpgSQL_expr"], active_lanes,
-                                     expected_type, False)
+            output += translate_expr(stmt["PLpgSQL_expr"], active_lanes, False)
         elif ("PLpgSQL_stmt_assign" in stmt):
             output += translate_assign_stmt(stmt["PLpgSQL_stmt_assign"], active_lanes)
 
@@ -440,7 +441,7 @@ def get_function_vars(datums: list, udf_str: str, active_lanes : ActiveLanes) ->
             else:
                 if "default_val" in var:
                     query_result = translate_expr(
-                        var["default_val"]["PLpgSQL_expr"], active_lanes, udf_type)
+                        var["default_val"]["PLpgSQL_expr"], active_lanes, False)
                     initializations.append(
                         function_config["fdecl_var"].format(
                             name=name,
@@ -458,7 +459,7 @@ def get_function_vars(datums: list, udf_str: str, active_lanes : ActiveLanes) ->
     return initializations
 
 
-def translate_function(function: dict, udf_str: str, active_lanes: ActiveLanes) -> str:
+def translate_function(function: dict, udf_str: str, active_lanes: ActiveLanes) -> tuple[str]:
     """
     Transpile a function from PL/pgSQL to C++.
     Returns a string with the transpiled function.
@@ -486,19 +487,24 @@ def translate_function(function: dict, udf_str: str, active_lanes: ActiveLanes) 
         "initializations": "\n".join(initializations),
         "body": translate_action(function["action"], active_lanes)
     }
-    output += function_config['fshell'].format(**params)
+    output += function_config['fshell'].format(**params)+"\n"
     params = {
         "duck_ret_type": gv.func_return_type.get_cpp_sqltype(),
         "duck_arg_types": ", ".join(map(lambda a: a[1].get_cpp_sqltype(), gv.func_args)),
         "func_name": gv.func_name
     }
-    output += "\n"+function_config['fcreate'].format(**params)
+    reg = function_config['fcreate'].format(**params)
     active_lanes.pop_returns()
     active_lanes.pop_active()
-    return output
+    return output, reg
 
 
-def translate_plpgsql_udf_str(udf_str: str) -> str:
+def translate_plpgsql_udf_str(udf_str: str) -> tuple[str]:
+    """
+    return:
+    str1: main udf implementations
+    str2: udf registration line
+    """
     try:
         # translate_query(None, None)
         ast_str = pglast.parser.parse_plpgsql_json(udf_str)
@@ -521,6 +527,7 @@ def translate_plpgsql_udf_str(udf_str: str) -> str:
 
     params = {
         'db_name': 'db',
+        'vector_size': 2048 #todo
     }
     gv.global_macros.append(query_config['macro'].format(**params))
     gv.query_macro = True
@@ -531,8 +538,9 @@ def translate_plpgsql_udf_str(udf_str: str) -> str:
             gv.func_vars = {}
             gv.func_name = function_names[idx]
             gv.func_return_type = Udf_Type(return_types[idx], udf_str)
-            cpp_str += translate_function(
+            func_ret = translate_function(
                 function["PLpgSQL_function"], udf_str, ActiveLanes())
+            cpp_str += func_ret[0]
             cpp_str += "\n\n"
 
-    return "\n".join(gv.global_macros + gv.global_variables + gv.global_functions) + "\n" + cpp_str
+    return "\n".join(gv.global_macros + gv.global_variables + gv.global_functions) + "\n" + cpp_str, func_ret[1]

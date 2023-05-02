@@ -7,37 +7,62 @@ macro: |-
     duckdb::DuckDB db(nullptr);
     thread_local duckdb::Connection trans_con({db_name});
 
+    std::vector<duckdb::Value> const_vector_gen(duckdb::Value val){{
+        // generates vector_size copies of val to store in the vector
+        std::vector<duckdb::Value> cons;
+        cons.reserve({vector_size});
+        for(int i=0;i<{vector_size};i++){{
+            cons.emplace_back(val);
+        }}
+        return cons;
+    }}
+
 global: |-
     thread_local std::unique_ptr<duckdb::PreparedStatement> {function_name}_prepare = trans_con.Prepare("{prep_statement}");
 
+# const_vector_gen: |-
+#     vector<duckdb::Value> const_vector_gen(duckdb::Value val){{
+#         # generates vector_size copies of val to store in the vector
+#         std::vector<duckdb::Value> cons;
+#         cons.reserve({vector_size});
+#         for(int i=0;i<{vector_size};i++){
+#             cons.emplace_back(val);
+#         }
+#         return cons;
+#     }}
+function_arg:
+
 function_arg: |-
-    const std::vector<duckdb::Value> &values{0}, std::vector<duckdb::Value> *valid_mask{0}, std::vector<duckdb::Value> *return_mask{0}, std::vector<duckdb::Value> *loop_mask{0}
+    const std::vector<duckdb::Value> &values{0}
 
 prepare_input: |-
     for(int i=0;i<{vector_size};i++){{
-        int j = {arg} * {vector_size} + i;
-        if(valid_mask{arg}->at(j) == 0 || (return_mask{arg} != NULL && return_mask{arg}->at(j) == 0) || (loop_mask{arg} != NULL && loop_mask{arg}->at(j) == 0))
-            input[j] = duckdb::Value();
+        // int j = {arg} * {vector_size} + i;
+        if(valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
+            input.emplace_back();
         else
-            input[j] = values{arg}[j];
+            input.emplace_back(values{arg}[i]);
     }}
   
 function: |-
-    std::vector<duckdb::Value> {function_name}({function_args}){{
+    // valid_mask and return_mask should not be null
+    std::vector<duckdb::Value> {function_name}({function_args}, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){{
         // prepare ps input
-        std::vector<duckdb::Value> input({input_size});
+        std::vector<duckdb::Value> input;
+        input.reserve({input_size});
     {prepare_input}
         // execute and fetch result
         auto res = {function_name}_prepare->Execute(input);
         if(res->HasError()){{
             throw std::runtime_error("Error when waiting for query result.");
-            return;
+            return input;
         }}
         auto data = res->Fetch();
         // prepare result
-        std::vector<duckdb::Value> ret({vector_size});
+        std::vector<duckdb::Value> ret;
+        ret.reserve({vector_size});
         for (idx_t i = 0; i < {vector_size}; i++) {{
-            ret[i] = data->GetValue(0, i);
+            ret.emplace_back(data->GetValue(0, i));
         }}
         return ret;
     }}

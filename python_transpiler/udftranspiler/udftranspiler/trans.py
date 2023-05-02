@@ -4,7 +4,7 @@ import yaml
 import re
 from pathlib import Path
 from typing import Tuple
-from .utils import Udf_Type, parse_assignment, is_const_or_var, function_arg_decl, dbg_assert, substitute_variables, is_loop_tempvar, add_identition
+from .utils import Udf_Type, ActiveLanes, parse_assignment, is_const_or_var, function_arg_decl, dbg_assert, substitute_variables, is_loop_tempvar, add_identition
 from .query import prepare_statement
 
 
@@ -73,13 +73,15 @@ def translate_query(query: str, query_is_assignment: bool) -> str:
     query = query.strip()
     # todo: this substitute is suspectable to errors
     # query = substitute_variables(query, gv.temp_var_substitutes)
-    
+
     if is_const_or_var(query, gv.func_vars):
         return '{}'.format(query)
-    prep_statement, args = prepare_statement(query, gv.func_vars, gv.vector_size)
-    
+    prep_statement, args = prepare_statement(
+        query, gv.func_vars, gv.vector_size)
+
     function_arg_temp = query_config['function_arg']
-    function_args = ', '.join([function_arg_temp.format(i) for i in range(len(args))])
+    function_args = ', '.join([function_arg_temp.format(i)
+                              for i in range(len(args))])
     params = {
         'db_name': 'db',
         'prep_statement': prep_statement,
@@ -90,7 +92,8 @@ def translate_query(query: str, query_is_assignment: bool) -> str:
         # 'args_count': len(args),
         'input_size': gv.vector_size*len(args)
     }
-    params['prepare_input'] = add_identition('\n'.join([query_config['prepare_input'].format(**params, arg = arg) for arg in range(len(args))]))
+    params['prepare_input'] = add_identition('\n'.join(
+        [query_config['prepare_input'].format(**params, arg=arg) for arg in range(len(args))]))
     if not gv.query_macro:
         gv.global_macros.append(query_config['macro'].format(**params))
         gv.query_macro = True
@@ -105,7 +108,7 @@ def translate_query(query: str, query_is_assignment: bool) -> str:
     return
 
 
-def translate_expr(expr: dict, expected_type: Udf_Type, query_is_assignment: bool = False) -> str:
+def translate_expr(expr: dict, active_lanes: ActiveLanes, expected_type: Udf_Type, query_is_assignment: bool = False) -> str:
     # print("translate_expr()",expr)
     if "query" in expr and len(expr) == 1:
         return translate_query(expr['query'], query_is_assignment)
@@ -113,85 +116,113 @@ def translate_expr(expr: dict, expected_type: Udf_Type, query_is_assignment: boo
         raise Exception('Unsupport PLpgSQL_expr: {}'.format(expr))
 
 
-def translate_assign_stmt(stmt: dict) -> str:
+def translate_assign_stmt(stmt: dict, active_lanes: ActiveLanes) -> str:
     # example: {'lineno': 5, 'varno': 3, 'expr': {'PLpgSQL_expr': {'query': 'pd2 := pd'}}
     # other possible fields: lineno, varno
     stmt = stmt['expr']
     dbg_assert("PLpgSQL_expr" in stmt,
                'assignment must be in form of expression')
     # todo: need to prepare the left value and '='
-    return translate_expr(stmt["PLpgSQL_expr"], None, True)
+    return "TODO_ADD_VAR = " + translate_expr(stmt["PLpgSQL_expr"], None, True) + ";"
 
 
-def translate_return_stmt(return_stmt: dict) -> str:
+def translate_return_stmt(return_stmt: dict, active_lanes: ActiveLanes) -> str:
     """;
     Transpile a return statement from PL/pgSQL to C++.
     """
     # supported field lineno, expr
     dbg_assert(len(return_stmt) == 2,
                "return_stmt should only have lineno and expr")
-    output = "return "
-    return output+translate_body([return_stmt['expr']], gv.func_return_type)+';\n'
+    return_loop_mask_conditions = ""
+    if active_lanes.get_loop_active() is not None:
+        params = {
+            "loop_active_var": active_lanes.get_loop_active(),
+            "continued_var": active_lanes.get_continues(),
+        }
+        return_loop_mask_conditions = control_config['return_loop_cond'].format(
+            **params)
+    params = {
+        "i_var": new_variable(),
+        "return_exp_var": new_variable(),
+        "return_exp": translate_body([return_stmt['expr']], active_lanes, gv.func_return_type),
+        "active_var": active_lanes.get_active(),
+        "return_mask_var": active_lanes.get_returns(),
+        "return_loop_mask_conditions": return_loop_mask_conditions,
+    }
+    return control_config['return'].format(**params)
 
 
-def translate_if_stmt(if_stmt: dict) -> str:
+def translate_if_stmt(if_stmt: dict, active_lanes: ActiveLanes) -> str:
     """
     Transpile an if statement from PL/pgSQL to C++.
     """
     output = ""
     dbg_assert("cond" in if_stmt, "if_stmt should have cond")
-    cond_exp = translate_body([if_stmt['cond']], Udf_Type("BOOLEAN"))
+    cond_exp = translate_body(
+        [if_stmt['cond']], active_lanes, Udf_Type("BOOLEAN"))
     then_body = ""
-    elseifs = ""
     else_ = ""
 
+    input_active = active_lanes.get_active()
+    new_active = active_lanes.new_active()
+
     if "then_body" in if_stmt:
-        then_body = translate_body(if_stmt['then_body'])
+        then_body = translate_body(if_stmt['then_body'], active_lanes)
 
-    if "elsif_list" in if_stmt:
-        for elseif_outer in if_stmt['elsif_list']:
-            dbg_assert("PLpgSQL_if_elsif" in elseif_outer,
-                       "elsif should be PLpgSQL_if_elsif")
-            elseif = elseif_outer['PLpgSQL_if_elsif']
-            dbg_assert("cond" in elseif, "elseif should have cond")
-            if "stmts" in elseif:
-                elseif_then_body = translate_body(elseif['stmts'])
-            else:
-                elseif_then_body = ""
-            elseifs += control_config['else_if'].format(
-                condition=translate_body(
-                    [elseif['cond']], Udf_Type("BOOLEAN")),
-                then_body=elseif_then_body
-            )
-            elseifs += "\n"
-
-    if "else_body" in if_stmt:
+    if "elsif_list" in if_stmt and len(if_stmt['elsif_list']) > 0:
+        if_stmt_copy = if_stmt.copy()
+        first_elif = if_stmt_copy['elsif_list'].pop(0)
+        if_stmt_copy['cond'] = first_elif['PLpgSQL_if_elsif']['cond']
+        if "stmts" in first_elif['PLpgSQL_if_elsif']:
+            if_stmt_copy['then_body'] = first_elif['PLpgSQL_if_elsif']['stmts']
+        else:
+            if_stmt_copy.pop('then_body', None)
         else_ = control_config['else'].format(
-            else_body=translate_body(if_stmt['else_body']))
+            else_body=translate_if_stmt(if_stmt_copy, active_lanes))
+
+    elif "else_body" in if_stmt:
+        else_ = control_config['else'].format(
+            else_body=translate_body(if_stmt['else_body'], active_lanes))
 
     params = {
         "condition": cond_exp,
+        "i_var": new_variable(),
+        "cond_var": new_variable(),
+        "active_var": new_variable(),
+        "input_active_lanes": input_active,
+        "active_var": new_active,
         "then_body": then_body,
-        "elseifs": elseifs,
         "else": else_
     }
     output += control_config['if_block'].format(**params)
+
+    active_lanes.pop_active()
     return output
 
 
-def translate_loop_stmt(loop_stmt: dict) -> str:
+def translate_loop_stmt(loop_stmt: dict, active_lanes: ActiveLanes) -> str:
     """
     Transpile a simple loop statement from PL/pgSQL to C++.
     """
+    new_loop_active = active_lanes.new_loop_active()
+    new_continues = active_lanes.new_continues()
     output = ""
     params = {
-        "body": translate_body(loop_stmt['body'])
+        "i_var": new_variable(),
+        "any_active_lane_var": new_variable(),
+        "input_active_lanes": active_lanes.get_active(),
+        "return_mask_var": active_lanes.get_returns(),
+        "loop_active_var": new_loop_active,
+        "continued_var": new_continues,
+        "body": translate_body(loop_stmt['body'], active_lanes)
     }
     output += control_config['simple'].format(**params)
+    active_lanes.pop_loop_active()
+    active_lanes.pop_continues()
     return output
 
 
-def translate_for_stmt(for_stmt: dict) -> str:
+def translate_for_stmt(for_stmt: dict, active_lanes : ActiveLanes) -> str:
     """
     Transpile a for loop statement from PL/pgSQL to C++.
     """
@@ -217,6 +248,9 @@ def translate_for_stmt(for_stmt: dict) -> str:
 
     """
 
+    new_loop_active = active_lanes.new_loop_active()
+    new_continues = active_lanes.new_continues()
+
     var = for_stmt["var"]["PLpgSQL_var"]
     name = var["refname"]
 
@@ -235,19 +269,24 @@ def translate_for_stmt(for_stmt: dict) -> str:
     if is_reverse:
         dbg_assert(for_stmt["reverse"], "reverse must be true")
 
-    step_size = translate_expr(for_stmt["step"]["PLpgSQL_expr"], Udf_Type(
-        "INTEGER"), False) if "step" in for_stmt else "1"
+    step_size = int(for_stmt["step"]["PLpgSQL_expr"]["query"]) if "step" in for_stmt else "1"
     try:
         dbg_assert(int(step_size) > 0, "Step size must be positive")
     except ValueError:
         raise Exception("step_size is not integer")
 
     params = {
-        "body": translate_body(for_stmt['body']),
-        "start": translate_expr(for_stmt["lower"]["PLpgSQL_expr"], Udf_Type("INTEGER"), False),
-        "end": translate_expr(for_stmt["upper"]["PLpgSQL_expr"], Udf_Type("INTEGER"), False),
+        "body": translate_body(for_stmt['body'], active_lanes),
+        "start": for_stmt["lower"]["PLpgSQL_expr"]["query"],
+        "end": for_stmt["upper"]["PLpgSQL_expr"]["query"],
         "name": temp_var_name,
         "step":  step_size,
+        "i_var": new_variable(),
+        "any_active_lane_var": new_variable(),
+        "input_active_lanes": active_lanes.get_active(),
+        "return_mask_var": active_lanes.get_returns(),
+        "loop_active_var": new_loop_active,
+        "continued_var": new_continues,
     }
     output += control_config['revfor' if is_reverse else 'for'].format(
         **params)
@@ -259,36 +298,57 @@ def translate_for_stmt(for_stmt: dict) -> str:
     else:
         gv.temp_var_substitutes[name] = prev_sub
 
+    active_lanes.pop_loop_active()
+    active_lanes.pop_continues()
     return output
 
 
-def translate_while_stmt(while_stmt: dict) -> str:
+def translate_while_stmt(while_stmt: dict, active_lanes: ActiveLanes) -> str:
     """
     Transpile a while loop statement from PL/pgSQL to C++.
     """
     output = ""
-
+    new_loop_active = active_lanes.new_loop_active()
+    new_continues = active_lanes.new_continues()
+    output = ""
     params = {
-        "body": translate_body(while_stmt['body']),
+        "i_var": new_variable(),
+        "any_active_lane_var": new_variable(),
+        "cond_var": new_variable(),
+        "input_active_lanes": active_lanes.get_active(),
+        "return_mask_var": active_lanes.get_returns(),
+        "loop_active_var": new_loop_active,
+        "continued_var": new_continues,
         "condition": translate_expr(while_stmt["cond"]["PLpgSQL_expr"], Udf_Type("BOOLEAN"), False),
+        "body": translate_body(while_stmt['body'], active_lanes)
     }
     output += control_config['while'].format(**params)
+    active_lanes.pop_loop_active()
+    active_lanes.pop_continues()
     return output
 
 
-def translate_exitcont_stmt(exitcont_stmt: dict) -> str:
+def translate_exitcont_stmt(exitcont_stmt: dict, active_lanes: ActiveLanes) -> str:
     """
     Transpile a exit/continue statement from PL/pgSQL to C++.
     """
-
+    assert active_lanes.get_loop_active() is not None, "exit/continue must be inside a loop"
+    assert active_lanes.get_continues() is not None, "exit/continue must be inside a loop"
+    params = {
+        "i_var": new_variable(),
+        "active_var": active_lanes.get_active(),
+        "continued_var": active_lanes.get_continues(),
+        "return_mask_var": active_lanes.get_returns(),
+        "loop_active_var": active_lanes.get_loop_active()
+    }
     if "is_exit" in exitcont_stmt:
         dbg_assert(exitcont_stmt["is_exit"], "is_exit must be true")
-        return "break;"
+        return control_config['break'].format(**params)
     else:
-        return "continue;"
+        return control_config['continue'].format(**params)
 
 
-def translate_body(body: list, expected_type: Udf_Type = None) -> str:
+def translate_body(body: list, active_lanes: ActiveLanes, expected_type: Udf_Type = None) -> str:
     """
     Transpile a body from PL/pgSQL to C++.\n
     This function might be called recursively inside trans_*. If there is called
@@ -303,24 +363,28 @@ def translate_body(body: list, expected_type: Udf_Type = None) -> str:
 
         # Example, need to add more stmts
         if ("PLpgSQL_stmt_if" in stmt):
-            output += translate_if_stmt(stmt["PLpgSQL_stmt_if"])
+            output += translate_if_stmt(stmt["PLpgSQL_stmt_if"], active_lanes)
         elif ("PLpgSQL_stmt_return" in stmt):
-            output += translate_return_stmt(stmt["PLpgSQL_stmt_return"])
+            output += translate_return_stmt(
+                stmt["PLpgSQL_stmt_return"], active_lanes)
         elif ("PLpgSQL_expr" in stmt):
-            output += translate_expr(stmt["PLpgSQL_expr"],
+            output += translate_expr(stmt["PLpgSQL_expr"], active_lanes,
                                      expected_type, False)
         elif ("PLpgSQL_stmt_assign" in stmt):
-            output += translate_assign_stmt(stmt["PLpgSQL_stmt_assign"])
+            output += translate_assign_stmt(stmt["PLpgSQL_stmt_assign"], active_lanes)
 
         # loop
         elif ("PLpgSQL_stmt_loop" in stmt):
-            output += translate_loop_stmt(stmt["PLpgSQL_stmt_loop"])
+            output += translate_loop_stmt(
+                stmt["PLpgSQL_stmt_loop"], active_lanes)
         elif ("PLpgSQL_stmt_fori" in stmt):
-            output += translate_for_stmt(stmt["PLpgSQL_stmt_fori"])
+            output += translate_for_stmt(stmt["PLpgSQL_stmt_fori"], active_lanes)
         elif ("PLpgSQL_stmt_while" in stmt):
-            output += translate_while_stmt(stmt["PLpgSQL_stmt_while"])
+            output += translate_while_stmt(
+                stmt["PLpgSQL_stmt_while"], active_lanes)
         elif ("PLpgSQL_stmt_exit" in stmt):
-            output += translate_exitcont_stmt(stmt["PLpgSQL_stmt_exit"])
+            output += translate_exitcont_stmt(
+                stmt["PLpgSQL_stmt_exit"], active_lanes)
 
         else:
             raise Exception("Unknown statement type: {}".format(str(stmt)))
@@ -331,25 +395,25 @@ def translate_body(body: list, expected_type: Udf_Type = None) -> str:
     return output
 
 
-def translate_stmt_block(stmt_block: dict) -> str:
+def translate_stmt_block(stmt_block: dict, active_lanes) -> str:
     """
     Transpile a statement block from PL/pgSQL to C++.
     """
     output = ""
-    output += translate_body(stmt_block["body"])
+    output += translate_body(stmt_block["body"], active_lanes)
     return output
 
 
-def translate_action(action: dict) -> str:
+def translate_action(action: dict, active_lanes) -> str:
     """
     Transpile an action from PL/pgSQL to C++.
     """
     output = ""
-    output += translate_stmt_block(action["PLpgSQL_stmt_block"])
+    output += translate_stmt_block(action["PLpgSQL_stmt_block"], active_lanes)
     return output
 
 
-def get_function_vars(datums: list, udf_str: str) -> Tuple[list, list]:
+def get_function_vars(datums: list, udf_str: str, active_lanes : ActiveLanes) -> Tuple[list, list]:
     """
     Get the function arguments from the datums.
     Returns a tuple with a list of the formatted function arguments, and a
@@ -376,17 +440,16 @@ def get_function_vars(datums: list, udf_str: str) -> Tuple[list, list]:
             else:
                 if "default_val" in var:
                     query_result = translate_expr(
-                        var["default_val"]["PLpgSQL_expr"], udf_type)
+                        var["default_val"]["PLpgSQL_expr"], active_lanes, udf_type)
                     initializations.append(
                         function_config["fdecl_var"].format(
-                            type=udf_type.cpp_type, name=name,
+                            name=name,
                             var=query_result)
                     )
                     gv.func_vars[name] = (udf_type, True)
                 else:
                     initializations.append(
-                        function_config["finit_var"].format(
-                            type=udf_type.cpp_type, name=name)
+                        function_config["finit_var"].format(name=name)
                     )
                     gv.func_vars[name] = (udf_type, False)
 
@@ -395,32 +458,43 @@ def get_function_vars(datums: list, udf_str: str) -> Tuple[list, list]:
     return initializations
 
 
-def translate_function(function: dict, udf_str: str) -> str:
+def translate_function(function: dict, udf_str: str, active_lanes: ActiveLanes) -> str:
     """
     Transpile a function from PL/pgSQL to C++.
     Returns a string with the transpiled function.
     """
     # Get function args
     output = ""
-    initializations = get_function_vars(function["datums"], udf_str)
-    args_str = map(lambda a: function_config["farg"].format(
-        type=a[1].cpp_type, name=a[0]), gv.func_args)
+    initializations = get_function_vars(function["datums"], udf_str, active_lanes)
+    args_str = ""
+    for i in range(len(gv.func_args)):
+        name, _ = gv.func_args[i]
+        params = {
+            "arg_num": str(i),
+            "name": name,
+            "i_var": new_variable()
+        }
+        args_str += function_config["farg"].format(**params)
+        args_str += "\n"
+    return_mask_var = active_lanes.new_returns()
+    active_lanes_var = active_lanes.new_active()
     params = {
-        "return_type": gv.func_return_type.cpp_type,
+        "return_mask_var": return_mask_var,
+        "active_lanes_var": active_lanes_var,
         "function_name": gv.func_name,
-        "function_args": ", ".join(args_str),
+        "function_args": args_str,
         "initializations": "\n".join(initializations),
-        "body": translate_action(function["action"])
+        "body": translate_action(function["action"], active_lanes)
     }
     output += function_config['fshell'].format(**params)
     params = {
-        "cpp_ret_type": gv.func_return_type.cpp_type,
-        "cpp_arg_types": ", ".join(map(lambda a: a[1].cpp_type, gv.func_args)),
         "duck_ret_type": gv.func_return_type.get_cpp_sqltype(),
         "duck_arg_types": ", ".join(map(lambda a: a[1].get_cpp_sqltype(), gv.func_args)),
         "func_name": gv.func_name
     }
     output += "\n"+function_config['fcreate'].format(**params)
+    active_lanes.pop_returns()
+    active_lanes.pop_active()
     return output
 
 
@@ -445,6 +519,12 @@ def translate_plpgsql_udf_str(udf_str: str) -> str:
     if len(function_names) < len(ast):
         raise Exception("Function name not specified for all functions")
 
+    params = {
+        'db_name': 'db',
+    }
+    gv.global_macros.append(query_config['macro'].format(**params))
+    gv.query_macro = True
+
     for idx, function in enumerate(ast):
         if ("PLpgSQL_function" in function):
             gv.func_args = []
@@ -452,7 +532,7 @@ def translate_plpgsql_udf_str(udf_str: str) -> str:
             gv.func_name = function_names[idx]
             gv.func_return_type = Udf_Type(return_types[idx], udf_str)
             cpp_str += translate_function(
-                function["PLpgSQL_function"], udf_str)
+                function["PLpgSQL_function"], udf_str, ActiveLanes())
             cpp_str += "\n\n"
 
     return "\n".join(gv.global_macros + gv.global_variables + gv.global_functions) + "\n" + cpp_str

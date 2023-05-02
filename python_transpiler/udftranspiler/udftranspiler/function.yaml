@@ -1,17 +1,44 @@
 fshell: |-
-  {return_type} {function_name}({function_args}) {{
-  {initializations}
-  {body}
+  static void {function_name}(DataChunk &args, ExpressionState &state, Vector &result) {{
+    UnifiedVectorFormat vdata;
+    std::vector<bool> {return_mask_var}(args.size());
+    std::vector<duckdb::Value> return_values(args.size());
+    for(int i = 0; i < args.size() ; i++) {{
+      {return_mask_var}[i] = false;
+    }}
+    std::vector<bool> {active_lanes_var}(args.size());
+    for(int i = 0; i < args.size() ; i++) {{
+      {active_lanes_var}[i] = true;
+    }}
+    /** FUNCTION ARGS **/
+    {function_args}
+    /** INITIALIZE VARIABLES **/
+    {initializations}
+    /** FUNCTION BODY **/
+    {body}
+    /** SET RETURN VALUE **/
+    for (idx_t i = 0; i < args.size(); i++) {{
+      result.SetValue(i, return_values[i]);
+    }}
   }}
 
+# farg: |-
+#   {type} {name}
+
 farg: |-
-  {type} {name}
+  args.data[{arg_num}].ToUnifiedFormat(args.size(), vdata);
+  std::vector<duckdb::Value> {name}(args.size());
+  for (idx_t {i_var} = 0; {i_var} < args.size(); {i_var}++) {{
+    if (vdata.validity.GetValidityEntry({i_var})) {{
+      {name}[{i_var}] = args.data[{arg_num}].GetValue({i_var});
+    }}
+  }}
 
 fdecl_var: |-
-  {type} {name} = {var};
+  std::vector<duckdb:Value> {name} = {var};
 
 finit_var: |-
-  {type} {name};
+  std::vector<duckdb:Value> {name};
 
 fcreate: |-
-  con.CreateScalarFunction<{cpp_ret_type}, {cpp_arg_types}>("{func_name}", {{{duck_arg_types}}}, {duck_ret_type}, &{func_name});
+  con.CreateVectorizedFunction("{func_name}", {{{duck_arg_types}}}, {duck_ret_type}, &{func_name});

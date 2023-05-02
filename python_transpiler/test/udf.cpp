@@ -32,9 +32,10 @@ std::vector<duckdb::Value> query1(const std::vector<duckdb::Value> &values0, std
     // prepare ps input
     std::vector<duckdb::Value> input;
     input.reserve(2048);
+    size_t input_size = valid_mask->size();
     for(int i=0;i<2048;i++){
         // int j = 0 * 2048 + i;
-        if(valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
+        if(i >= input_size || valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
             input.emplace_back();
         else
             input.emplace_back(values0[i]);
@@ -49,8 +50,8 @@ std::vector<duckdb::Value> query1(const std::vector<duckdb::Value> &values0, std
     auto data = res->Fetch();
     // prepare result
     std::vector<duckdb::Value> ret;
-    ret.reserve(2048);
-    for (idx_t i = 0; i < 2048; i++) {
+    ret.reserve(input_size);
+    for (idx_t i = 0; i < input_size; i++) {
         ret.emplace_back(data->GetValue(0, i));
     }
     return ret;
@@ -60,9 +61,10 @@ std::vector<duckdb::Value> query2(const std::vector<duckdb::Value> &values0, std
     // prepare ps input
     std::vector<duckdb::Value> input;
     input.reserve(2048);
+    size_t input_size = valid_mask->size();
     for(int i=0;i<2048;i++){
         // int j = 0 * 2048 + i;
-        if(valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
+        if(i >= input_size || valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
             input.emplace_back();
         else
             input.emplace_back(values0[i]);
@@ -77,8 +79,8 @@ std::vector<duckdb::Value> query2(const std::vector<duckdb::Value> &values0, std
     auto data = res->Fetch();
     // prepare result
     std::vector<duckdb::Value> ret;
-    ret.reserve(2048);
-    for (idx_t i = 0; i < 2048; i++) {
+    ret.reserve(input_size);
+    for (idx_t i = 0; i < input_size; i++) {
         ret.emplace_back(data->GetValue(0, i));
     }
     return ret;
@@ -88,9 +90,10 @@ std::vector<duckdb::Value> query3(const std::vector<duckdb::Value> &values0, std
     // prepare ps input
     std::vector<duckdb::Value> input;
     input.reserve(2048);
+    size_t input_size = valid_mask->size();
     for(int i=0;i<2048;i++){
         // int j = 0 * 2048 + i;
-        if(valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
+        if(i >= input_size || valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
             input.emplace_back();
         else
             input.emplace_back(values0[i]);
@@ -105,8 +108,8 @@ std::vector<duckdb::Value> query3(const std::vector<duckdb::Value> &values0, std
     auto data = res->Fetch();
     // prepare result
     std::vector<duckdb::Value> ret;
-    ret.reserve(2048);
-    for (idx_t i = 0; i < 2048; i++) {
+    ret.reserve(input_size);
+    for (idx_t i = 0; i < input_size; i++) {
         ret.emplace_back(data->GetValue(0, i));
     }
     return ret;
@@ -116,9 +119,10 @@ std::vector<duckdb::Value> query4(const std::vector<duckdb::Value> &values0, std
     // prepare ps input
     std::vector<duckdb::Value> input;
     input.reserve(2048);
+    size_t input_size = valid_mask->size();
     for(int i=0;i<2048;i++){
         // int j = 0 * 2048 + i;
-        if(valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
+        if(i >= input_size || valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
             input.emplace_back();
         else
             input.emplace_back(values0[i]);
@@ -133,8 +137,8 @@ std::vector<duckdb::Value> query4(const std::vector<duckdb::Value> &values0, std
     auto data = res->Fetch();
     // prepare result
     std::vector<duckdb::Value> ret;
-    ret.reserve(2048);
-    for (idx_t i = 0; i < 2048; i++) {
+    ret.reserve(input_size);
+    for (idx_t i = 0; i < input_size; i++) {
         ret.emplace_back(data->GetValue(0, i));
     }
     return ret;
@@ -144,9 +148,10 @@ std::vector<duckdb::Value> query5(const std::vector<duckdb::Value> &values0, std
     // prepare ps input
     std::vector<duckdb::Value> input;
     input.reserve(2048);
+    size_t input_size = valid_mask->size();
     for(int i=0;i<2048;i++){
         // int j = 0 * 2048 + i;
-        if(valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
+        if(i >= input_size || valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
             input.emplace_back();
         else
             input.emplace_back(values0[i]);
@@ -161,8 +166,8 @@ std::vector<duckdb::Value> query5(const std::vector<duckdb::Value> &values0, std
     auto data = res->Fetch();
     // prepare result
     std::vector<duckdb::Value> ret;
-    ret.reserve(2048);
-    for (idx_t i = 0; i < 2048; i++) {
+    ret.reserve(input_size);
+    for (idx_t i = 0; i < input_size; i++) {
         ret.emplace_back(data->GetValue(0, i));
     }
     return ret;
@@ -172,9 +177,10 @@ std::vector<duckdb::Value> query6(const std::vector<duckdb::Value> &values0, std
     // prepare ps input
     std::vector<duckdb::Value> input;
     input.reserve(2048);
+    size_t input_size = valid_mask->size();
     for(int i=0;i<2048;i++){
         // int j = 0 * 2048 + i;
-        if(valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
+        if(i >= input_size || valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
             input.emplace_back();
         else
             input.emplace_back(values0[i]);
@@ -189,8 +195,8 @@ std::vector<duckdb::Value> query6(const std::vector<duckdb::Value> &values0, std
     auto data = res->Fetch();
     // prepare result
     std::vector<duckdb::Value> ret;
-    ret.reserve(2048);
-    for (idx_t i = 0; i < 2048; i++) {
+    ret.reserve(input_size);
+    for (idx_t i = 0; i < input_size; i++) {
         ret.emplace_back(data->GetValue(0, i));
     }
     return ret;
@@ -200,9 +206,10 @@ std::vector<duckdb::Value> query7(const std::vector<duckdb::Value> &values0, std
     // prepare ps input
     std::vector<duckdb::Value> input;
     input.reserve(2048);
+    size_t input_size = valid_mask->size();
     for(int i=0;i<2048;i++){
         // int j = 0 * 2048 + i;
-        if(valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
+        if(i >= input_size || valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
             input.emplace_back();
         else
             input.emplace_back(values0[i]);
@@ -217,8 +224,8 @@ std::vector<duckdb::Value> query7(const std::vector<duckdb::Value> &values0, std
     auto data = res->Fetch();
     // prepare result
     std::vector<duckdb::Value> ret;
-    ret.reserve(2048);
-    for (idx_t i = 0; i < 2048; i++) {
+    ret.reserve(input_size);
+    for (idx_t i = 0; i < input_size; i++) {
         ret.emplace_back(data->GetValue(0, i));
     }
     return ret;
@@ -228,9 +235,10 @@ std::vector<duckdb::Value> query8(const std::vector<duckdb::Value> &values0, std
     // prepare ps input
     std::vector<duckdb::Value> input;
     input.reserve(2048);
+    size_t input_size = valid_mask->size();
     for(int i=0;i<2048;i++){
         // int j = 0 * 2048 + i;
-        if(valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
+        if(i >= input_size || valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
             input.emplace_back();
         else
             input.emplace_back(values0[i]);
@@ -245,8 +253,8 @@ std::vector<duckdb::Value> query8(const std::vector<duckdb::Value> &values0, std
     auto data = res->Fetch();
     // prepare result
     std::vector<duckdb::Value> ret;
-    ret.reserve(2048);
-    for (idx_t i = 0; i < 2048; i++) {
+    ret.reserve(input_size);
+    for (idx_t i = 0; i < input_size; i++) {
         ret.emplace_back(data->GetValue(0, i));
     }
     return ret;
@@ -256,16 +264,17 @@ std::vector<duckdb::Value> query9(const std::vector<duckdb::Value> &values0, con
     // prepare ps input
     std::vector<duckdb::Value> input;
     input.reserve(4096);
+    size_t input_size = valid_mask->size();
     for(int i=0;i<2048;i++){
         // int j = 0 * 2048 + i;
-        if(valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
+        if(i >= input_size || valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
             input.emplace_back();
         else
             input.emplace_back(values0[i]);
     }
     for(int i=0;i<2048;i++){
         // int j = 1 * 2048 + i;
-        if(valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
+        if(i >= input_size || valid_mask->at(i) == 0 || return_mask->at(i) == 0 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 0))
             input.emplace_back();
         else
             input.emplace_back(values1[i]);
@@ -280,8 +289,8 @@ std::vector<duckdb::Value> query9(const std::vector<duckdb::Value> &values0, con
     auto data = res->Fetch();
     // prepare result
     std::vector<duckdb::Value> ret;
-    ret.reserve(2048);
-    for (idx_t i = 0; i < 2048; i++) {
+    ret.reserve(input_size);
+    for (idx_t i = 0; i < input_size; i++) {
         ret.emplace_back(data->GetValue(0, i));
     }
     return ret;

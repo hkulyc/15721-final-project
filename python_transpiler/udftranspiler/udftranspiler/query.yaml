@@ -3,7 +3,7 @@ macro: |-
     #include <stdexcept>
     #include <vector>
     #include <iostream>
-    #include "duckdb.hpp"
+    #include "udf.hpp"
 
     duckdb::DuckDB db(nullptr);
     thread_local duckdb::Connection trans_con({db_name});

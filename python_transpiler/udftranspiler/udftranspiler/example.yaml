@@ -10,6 +10,10 @@ multiline-str: |-
 
 location: "I am stored in resources/example.yaml"
 
+udf.hpp: |-
+  #include "duckdb.hpp"
+  {udf_decls}
+
 main: |-
     #include "duckdb.hpp"
     #include <chrono>

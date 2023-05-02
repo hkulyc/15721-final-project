@@ -488,6 +488,7 @@ def translate_function(function: dict, udf_str: str, active_lanes: ActiveLanes) 
         "body": translate_action(function["action"], active_lanes)
     }
     output += function_config['fshell'].format(**params)+"\n"
+    decl = function_config['func_dec'].format(**params)
     params = {
         "duck_ret_type": gv.func_return_type.get_cpp_sqltype(),
         "duck_arg_types": ", ".join(map(lambda a: a[1].get_cpp_sqltype(), gv.func_args)),
@@ -496,7 +497,7 @@ def translate_function(function: dict, udf_str: str, active_lanes: ActiveLanes) 
     reg = function_config['fcreate'].format(**params)
     active_lanes.pop_returns()
     active_lanes.pop_active()
-    return output, reg
+    return output, reg, decl
 
 
 def translate_plpgsql_udf_str(udf_str: str) -> tuple[str]:
@@ -532,6 +533,8 @@ def translate_plpgsql_udf_str(udf_str: str) -> tuple[str]:
     gv.global_macros.append(query_config['macro'].format(**params))
     gv.query_macro = True
 
+    regs = []
+    decls = []
     for idx, function in enumerate(ast):
         if ("PLpgSQL_function" in function):
             gv.func_args = []
@@ -542,5 +545,6 @@ def translate_plpgsql_udf_str(udf_str: str) -> tuple[str]:
                 function["PLpgSQL_function"], udf_str, ActiveLanes())
             cpp_str += func_ret[0]
             cpp_str += "\n\n"
-
-    return "\n".join(gv.global_macros + gv.global_variables + gv.global_functions) + "\n" + cpp_str, func_ret[1]
+            regs.append(func_ret[1])
+            decls.append(func_ret[2])
+    return "\n".join(gv.global_macros + gv.global_variables + gv.global_functions) + "\n" + cpp_str, '\n'.join(regs), '\n'.join(decls)

@@ -40,5 +40,8 @@ fdecl_var: |-
 finit_var: |-
   std::vector<duckdb::Value> {name};
 
+func_dec: |-
+  void {function_name}(duckdb::DataChunk &args, duckdb::ExpressionState &state, duckdb::Vector &result);
+
 fcreate: |-
   con->CreateVectorizedFunction("{func_name}", {{{duck_arg_types}}}, {duck_ret_type}, &{func_name});

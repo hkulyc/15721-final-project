@@ -23,6 +23,9 @@ poc/Makefile
 parse_dump.json
 poc/CMakeLists.txt
 
+# test in python_transpiler
+!python_transpiler/test/
+
 
 *.o
 *.tbl

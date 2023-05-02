@@ -23,16 +23,25 @@ file_option = click.option(
 def main(filepath: str, output: str) -> None:
     """Transpile a UDF from PLpgSQL to C++."""
     with open(filepath, 'r') as file:
-        cpp_output, reg = translate_plpgsql_udf_str(file.read())
+        cpp_output, regs, decls = translate_plpgsql_udf_str(file.read())
     if output:
         if not output.endswith('/'):
             output = output + '/'
+        # the cpp file
         udf_file = output + 'udf.cpp'
         with open(udf_file, 'w') as file:
             file.write(cpp_output)
+        # the hpp file
+        udf_header = output + 'udf.hpp'
+        param = {
+            'udf_decls': decls
+        }
+        with open(udf_header, 'w') as file:
+            file.write(example_config['udf.hpp'].format(**param))
+        # the main test file
         test_file = output + 'test.cpp'
         param = {
-            'udf_register': reg
+            'udf_register': regs
         }
         with open(test_file, 'w') as file:
             file.write(example_config['main'].format(**param))

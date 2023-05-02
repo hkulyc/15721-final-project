@@ -19,6 +19,25 @@ To get a list of commands and options:
 udftranspiler --help
 ```
 
+## Debug Pipeline
+1. 
+```
+python_transpiler % udftranspiler samples/xxx.sql -o test/
+```
+2. (if use for the first time)
+```
+cd test
+cmake .
+cd ..
+```
+3. 
+```
+cd test
+make
+./test
+```
+
+
 ### File Structure
 - env
   The packages for python virtual environment

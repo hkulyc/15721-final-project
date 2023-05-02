@@ -1,5 +1,5 @@
 fshell: |-
-  static void {function_name}(duckdb::DataChunk &args, duckdb::ExpressionState &state, duckdb::Vector &result) {{
+  void {function_name}(duckdb::DataChunk &args, duckdb::ExpressionState &state, duckdb::Vector &result) {{
     duckdb::UnifiedVectorFormat vdata;
     std::vector<bool> {return_mask_var}(args.size());
     std::vector<duckdb::Value> return_values(args.size());
@@ -41,4 +41,4 @@ finit_var: |-
   std::vector<duckdb::Value> {name};
 
 fcreate: |-
-  con.CreateVectorizedFunction("{func_name}", {{{duck_arg_types}}}, {duck_ret_type}, &{func_name});
+  con->CreateVectorizedFunction("{func_name}", {{{duck_arg_types}}}, {duck_ret_type}, &{func_name});

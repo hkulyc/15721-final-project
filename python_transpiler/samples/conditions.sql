@@ -1,9 +1,9 @@
-CREATE FUNCTION if_func(cid integer) RETURNS VARCHAR AS $$
+CREATE FUNCTION if_func(cid BIGINT) RETURNS VARCHAR AS $$
 DECLARE pd VARCHAR = 'function'; 
 DECLARE pd2 VARCHAR;
 declare i integer = 0;
 BEGIN
-    pd2 := pd+'test'+pd+pd2;
+    pd2 := concat(pd, 'test');
     if cid < 3 then 
         cid := cid + 1;
     elsif cid = 3 then

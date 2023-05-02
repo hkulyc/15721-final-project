@@ -25,7 +25,16 @@ def main(filepath: str, output: str) -> None:
     with open(filepath, 'r') as file:
         cpp_output, reg = translate_plpgsql_udf_str(file.read())
     if output:
-        with open(output, 'w') as file:
+        if not output.endswith('/'):
+            output = output + '/'
+        udf_file = output + 'udf.cpp'
+        with open(udf_file, 'w') as file:
             file.write(cpp_output)
+        test_file = output + 'test.cpp'
+        param = {
+            'udf_register': reg
+        }
+        with open(test_file, 'w') as file:
+            file.write(example_config['main'].format(**param))
     else:
         print(cpp_output)

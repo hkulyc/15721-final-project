@@ -512,6 +512,9 @@ def translate_function(function: dict, udf_str: str, active_lanes: ActiveLanes) 
     """
     # Get function args
     output = ""
+    return_mask_var = active_lanes.new_returns()
+    active_lanes_var = active_lanes.new_active()
+
     initializations = get_function_vars(
         function["datums"], udf_str, active_lanes)
     args_str = ""
@@ -524,8 +527,7 @@ def translate_function(function: dict, udf_str: str, active_lanes: ActiveLanes) 
         }
         args_str += function_config["farg"].format(**params)
         args_str += "\n"
-    return_mask_var = active_lanes.new_returns()
-    active_lanes_var = active_lanes.new_active()
+    
     params = {
         "return_mask_var": return_mask_var,
         "active_lanes_var": active_lanes_var,
@@ -560,8 +562,7 @@ def translate_plpgsql_udf_str(udf_str: str) -> tuple[str]:
         with open("parse_dump.json", "w") as f:
             f.write(json.dumps(ast, indent=2))
     except pglast.parser.ParseError as e:
-        raise Exception("Failed to parse UDF: ", e)
-        return
+        raise Exception("Failed to parse UDF: ", e) from None
 
     cpp_str = ""
 

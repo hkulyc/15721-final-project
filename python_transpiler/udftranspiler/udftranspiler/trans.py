@@ -69,6 +69,9 @@ def translate_query(query: str, active_lanes: ActiveLanes, query_is_assignment: 
     """
     # if assignment, only parse the right value
     # print(query)
+    query = query.strip()
+    query = query.replace('\n', ' ')
+
     if query_is_assignment:
         query = parse_assignment(query, gv.func_vars)[1]
     query = query.strip()
@@ -99,7 +102,8 @@ def translate_query(query: str, active_lanes: ActiveLanes, query_is_assignment: 
             gv.global_macros.append(query_config['macro'].format(**params))
             gv.query_macro = True
         gv.global_variables.append(query_config['global'].format(**params))
-        gv.global_functions.append(query_config['function_no_var'].format(**params))
+        gv.global_functions.append(
+            query_config['function_no_var'].format(**params))
         return '{}'.format(query_config['function_call'].format(**params))
 
     function_arg_temp = query_config['function_arg']
@@ -140,7 +144,7 @@ def translate_assign_stmt(stmt: dict, active_lanes: ActiveLanes) -> str:
     dbg_assert("PLpgSQL_expr" in stmt,
                'assignment must be in form of expression')
     # todo: need to prepare the left value and '='
-    
+
     left = parse_assignment(stmt["PLpgSQL_expr"]['query'], gv.func_vars)[0]
 
     return_loop_mask_conditions = ""
@@ -263,7 +267,7 @@ def translate_loop_stmt(loop_stmt: dict, active_lanes: ActiveLanes) -> str:
     return output
 
 
-def translate_for_stmt(for_stmt: dict, active_lanes : ActiveLanes) -> str:
+def translate_for_stmt(for_stmt: dict, active_lanes: ActiveLanes) -> str:
     """
     Transpile a for loop statement from PL/pgSQL to C++.
     """
@@ -310,7 +314,8 @@ def translate_for_stmt(for_stmt: dict, active_lanes : ActiveLanes) -> str:
     if is_reverse:
         dbg_assert(for_stmt["reverse"], "reverse must be true")
 
-    step_size = int(for_stmt["step"]["PLpgSQL_expr"]["query"]) if "step" in for_stmt else "1"
+    step_size = int(for_stmt["step"]["PLpgSQL_expr"]
+                    ["query"]) if "step" in for_stmt else "1"
     try:
         dbg_assert(int(step_size) > 0, "Step size must be positive")
     except ValueError:
@@ -411,14 +416,16 @@ def translate_body(body: list, active_lanes: ActiveLanes, expected_type: Udf_Typ
         elif ("PLpgSQL_expr" in stmt):
             output += translate_expr(stmt["PLpgSQL_expr"], active_lanes, False)
         elif ("PLpgSQL_stmt_assign" in stmt):
-            output += translate_assign_stmt(stmt["PLpgSQL_stmt_assign"], active_lanes)
+            output += translate_assign_stmt(
+                stmt["PLpgSQL_stmt_assign"], active_lanes)
 
         # loop
         elif ("PLpgSQL_stmt_loop" in stmt):
             output += translate_loop_stmt(
                 stmt["PLpgSQL_stmt_loop"], active_lanes)
         elif ("PLpgSQL_stmt_fori" in stmt):
-            output += translate_for_stmt(stmt["PLpgSQL_stmt_fori"], active_lanes)
+            output += translate_for_stmt(
+                stmt["PLpgSQL_stmt_fori"], active_lanes)
         elif ("PLpgSQL_stmt_while" in stmt):
             output += translate_while_stmt(
                 stmt["PLpgSQL_stmt_while"], active_lanes)
@@ -453,7 +460,7 @@ def translate_action(action: dict, active_lanes) -> str:
     return output
 
 
-def get_function_vars(datums: list, udf_str: str, active_lanes : ActiveLanes) -> Tuple[list, list]:
+def get_function_vars(datums: list, udf_str: str, active_lanes: ActiveLanes) -> Tuple[list, list]:
     """
     Get the function arguments from the datums.
     Returns a tuple with a list of the formatted function arguments, and a
@@ -505,7 +512,8 @@ def translate_function(function: dict, udf_str: str, active_lanes: ActiveLanes) 
     """
     # Get function args
     output = ""
-    initializations = get_function_vars(function["datums"], udf_str, active_lanes)
+    initializations = get_function_vars(
+        function["datums"], udf_str, active_lanes)
     args_str = ""
     for i in range(len(gv.func_args)):
         name, _ = gv.func_args[i]
@@ -557,7 +565,8 @@ def translate_plpgsql_udf_str(udf_str: str) -> tuple[str]:
 
     cpp_str = ""
 
-    return_types = re.findall(r"RETURNS\s+(\w+)", udf_str, flags=re.IGNORECASE)
+    return_types = re.findall(
+        r"RETURNS\s+(\w+(\(\d+,\d+\))?)", udf_str, flags=re.IGNORECASE)
     function_names = re.findall(
         r"CREATE\s+FUNCTION\s+(\w+)", udf_str, flags=re.IGNORECASE)
     if len(return_types) < len(ast):
@@ -567,7 +576,7 @@ def translate_plpgsql_udf_str(udf_str: str) -> tuple[str]:
 
     params = {
         'db_name': 'db',
-        'vector_size': 2048 #todo
+        'vector_size': 2048  # todo
     }
     gv.global_macros.append(query_config['macro'].format(**params))
     gv.query_macro = True
@@ -579,7 +588,7 @@ def translate_plpgsql_udf_str(udf_str: str) -> tuple[str]:
             gv.func_args = []
             gv.func_vars = {}
             gv.func_name = function_names[idx]
-            gv.func_return_type = Udf_Type(return_types[idx], udf_str)
+            gv.func_return_type = Udf_Type(return_types[idx][0], udf_str)
             func_ret = translate_function(
                 function["PLpgSQL_function"], udf_str, ActiveLanes())
             cpp_str += func_ret[0]

@@ -1,4 +1,5 @@
 from typing import Tuple
+import re
 
 
 def dbg_assert(cond: bool, msg: str):
@@ -36,7 +37,8 @@ def is_var(expr: str, vars: dict):
         return True
     else:
         return False
-    
+
+
 def is_const(expr: str, vars: dict):
     "check if an expression is a constant such as 2/'string', or variable"
     if (expr.startswith('"') and expr.endswith('"')) or (expr.startswith("'") and expr.endswith("'")):
@@ -45,7 +47,8 @@ def is_const(expr: str, vars: dict):
     elif (is_number(expr)):
         return True
     else:
-        return False 
+        return False
+
 
 def reformat_sql_string(sql_str: str):
     if (sql_str.startswith("'") and sql_str.endswith("'")):
@@ -83,25 +86,56 @@ def add_identition(code: str, iden: str = '    '):
 
 
 class Udf_Type:
-    duckdb_to_cpp_type = {
-        "BOOLEAN": "bool",
-        "TINYINT": "int8_t",
-        "SMALLINT": "int16_t",
-        "INTEGER": "int32_t",
-        "INT": "int32_t",  # alias of INTEGER
-        "BIGINT": "int64_t",
-        "FLOAT": "double",
-        "DOUBLE": "double",
-        "VARCHAR": "string_t",
-        "CHAR": "string_t",
-        "BLOB": "string_t",
-        "UNKNOWN": "UNKNOWN",
-        "DECIMAL": "double",  # not actually supported
-
+    alias_to_duckdb_type = {
+        "BIGINT": "BIGINT",
+        "INT8": "BIGINT",
+        "LONG": "BIGINT",
+        "BIT": "BIT",
+        "BITSTRING": "BIT",
+        "BOOLEAN": "BOOLEAN",
+        "BOOL": "BOOLEAN",
+        "LOGICAL": "BOOLEAN",
+        "BLOB": "BLOB",
+        "BYTEA": "BLOB",
+        "BINARY": "BLOB",
+        "VARBINARY": "BLOB",
+        "DATE": "DATE",
+        "DOUBLE": "DOUBLE",
+        "FLOAT8": "DOUBLE",
+        "NUMERIC": "DOUBLE",
+        "DECIMAL": "DOUBLE",  # this is decimal without fixed precision
+        # DECIMAL(s, p) needs to be checked for manually
+        "HUGEINT": "HUGEINT",
+        "INTEGER": "INTEGER",
+        "INT": "INTEGER",
+        "INT4": "INTEGER",
+        "SIGNED": "INTEGER",
+        "INTERVAL": "INTERVAL",
+        "REAL": "REAL",
+        "FLOAT4": "REAL",
+        "FLOAT": "REAL",
+        "SMALLINT": "SMALLINT",
+        "INT2": "SMALLINT",
+        "SHORT": "SMALLINT",
+        "TIME": "TIME",
+        "TIMESTAMP": "TIMESTAMP",
+        "DATETIME": "TIMESTAMP",
+        "TINYINT": "TINYINT",
+        "INT1": "TINYINT",
+        "UBIGINT": "UBIGINT",
+        "UINTEGER": "UINTEGER",
+        "USMALLINT": "USMALLINT",
+        "UTINYINT": "UTINYINT",
+        "UUID": "UUID",
+        "VARCHAR": "VARCHAR",
+        "CHAR": "VARCHAR",
+        "BPCHAR": "VARCHAR",
+        "TEXT": "VARCHAR",
+        "STRING": "VARCHAR",
     }
 
     @staticmethod
-    def resolve_type(type_name: str, udf_str: str) -> Tuple[str, str]:
+    def resolve_type(type_name: str, udf_str: str) -> str:
         """
         Resolve a type name to a C++ type name and a type size.
         """
@@ -114,20 +148,34 @@ class Udf_Type:
                 type_end += 1
 
             type_name = udf_str[type_start:type_end]
+            type_name = type_name.upper()
+            if type_name == "DECIMAL":
+                # check for DECIMAL(s, p)
+                res = re.findall(r"^(\(\d+,\d+\))",
+                                 udf_str[type_end:], flags=re.IGNORECASE)
+                if len(res) > 0:
+                    return type_name + res[0]
+
         type_name = type_name.upper()
         type_name = type_name.replace(" ", "")
-        if type_name in Udf_Type.duckdb_to_cpp_type:
-            return type_name, Udf_Type.duckdb_to_cpp_type[type_name]
+
+        if type_name.startswith("DECIMAL"):
+            res = re.findall(r"^DECIMAL(\(\d+,\d+\))",
+                             type_name, flags=re.IGNORECASE)
+            if len(res) > 0:
+                return type_name
+
+        if type_name in Udf_Type.alias_to_duckdb_type:
+            return Udf_Type.alias_to_duckdb_type[type_name]
         else:
             raise Exception("Unknown type: ", type_name)
 
     def __init__(self, duckdb_type: str, udf_str: str = ""):
-        duckdb_type, cpp_type = self.resolve_type(duckdb_type, udf_str)
+        duckdb_type = self.resolve_type(duckdb_type, udf_str)
         self.duckdb_type = duckdb_type
-        self.cpp_type = cpp_type
 
     def __str__(self):
-        return f"{self.duckdb_type}|{self.cpp_type}"
+        return f"{self.duckdb_type}"
 
     def __repr__(self):
         return str(self)
@@ -194,27 +242,26 @@ class ActiveLanes:
 
     def pop_loop_active(self):
         return self.loop_active.pop(0)
-    
+
     def pop_continues(self):
         return self.continues.pop(0)
 
     def pop_returns(self):
         return self.returns.pop(0)
-    
+
     def __get_mask_pointer(self, name: str):
         if name == None:
             return 'NULL'
         else:
             return '&'+name
-    
+
     def get_mask_pointers(self):
         "get a list of names of pointers to the four masks"
-        return [self.__get_mask_pointer(self.get_active()), \
-                    self.__get_mask_pointer(self.get_returns()), \
-                    self.__get_mask_pointer(self.get_loop_active()), \
-                    self.__get_mask_pointer(self.get_continues())]
+        return [self.__get_mask_pointer(self.get_active()),
+                self.__get_mask_pointer(self.get_returns()),
+                self.__get_mask_pointer(self.get_loop_active()),
+                self.__get_mask_pointer(self.get_continues())]
 
-    
     def get_mask_names(self):
         "get a list of names of the four masks"
         return [self.get_active(), self.get_returns(), self.get_loop_active() or 'NULL', self.get_continues() or 'NULL']

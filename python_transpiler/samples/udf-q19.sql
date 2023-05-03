@@ -22,7 +22,7 @@ LANGUAGE PLPGSQL;
 
 drop function q19conditions;
 
-CREATE FUNCTION q19conditions(pcontainer char(10), lqty DECIMAL(15,2),psize int,shipmode char(10),shipinst char(25),pbrand char(10)) RETURNS INTEGER AS $$
+CREATE FUNCTION q19conditions(pcontainer char, lqty DECIMAL(15,2),psize int,shipmode char,shipinst char,pbrand char) RETURNS INTEGER AS $$
 declare val int = 0;
 BEGIN
 

@@ -144,8 +144,10 @@ def translate_assign_stmt(stmt: dict, active_lanes: ActiveLanes) -> str:
     left = parse_assignment(stmt["PLpgSQL_expr"]['query'], gv.func_vars)[0]
 
     return_loop_mask_conditions = ""
+    i_var = new_variable()
     if active_lanes.get_loop_active() is not None:
         params = {
+            "i_var": i_var,
             "loop_active_var": active_lanes.get_loop_active(),
             "continued_var": active_lanes.get_continues(),
         }
@@ -153,7 +155,7 @@ def translate_assign_stmt(stmt: dict, active_lanes: ActiveLanes) -> str:
             **params)
     params = {
         "temp_var": new_variable(),
-        "i_var": new_variable(),
+        "i_var": i_var,
         "active_var": active_lanes.get_active(),
         "return_mask_var": active_lanes.get_returns(),
         "return_loop_mask_conditions": return_loop_mask_conditions,
@@ -170,16 +172,18 @@ def translate_return_stmt(return_stmt: dict, active_lanes: ActiveLanes) -> str:
     # supported field lineno, expr
     dbg_assert(len(return_stmt) == 2,
                "return_stmt should only have lineno and expr")
+    i_var = new_variable()
     return_loop_mask_conditions = ""
     if active_lanes.get_loop_active() is not None:
         params = {
+            "i_var": i_var,
             "loop_active_var": active_lanes.get_loop_active(),
             "continued_var": active_lanes.get_continues(),
         }
         return_loop_mask_conditions = control_config['return_loop_cond'].format(
             **params)
     params = {
-        "i_var": new_variable(),
+        "i_var": i_var,
         "return_exp_var": new_variable(),
         "return_exp": translate_body([return_stmt['expr']], active_lanes, gv.func_return_type),
         "active_var": active_lanes.get_active(),

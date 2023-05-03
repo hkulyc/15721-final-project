@@ -288,6 +288,19 @@ class Visitor:
     __ https://en.wikipedia.org/wiki/Breadth-first_search
     """
 
+    def __call_helper__(self, node):
+        method = self.by_ast_class.get(node.__class__, self.default_method)
+        try:
+            ancestors, node = self.generator.send(Continue)
+            self.__call_helper__(node)
+            if method is not None:
+                result = method(ancestors, node)
+            else:
+                result = None
+        except StopIteration:
+            return
+
+
     def __call__(self, root):
         "Iteratively visit the `root` node calling related ``visit_XYZ`` methods."
 
@@ -302,25 +315,26 @@ class Visitor:
             cls = getattr(ast, clsname, None)
             if cls is not None:
                 by_ast_class[cls] = method
+        self.by_ast_class = by_ast_class
+        self.default_method = self.visit
 
-        default_method = self.visit
-
-        generator = self.iterate(root)
+        self.generator = self.iterate(root)
         try:
-            ancestors, node = generator.send(None)
+            ancestors, node = self.generator.send(None)
         except StopIteration:
             return
 
-        while True:
-            method = by_ast_class.get(node.__class__, default_method)
-            if method is not None:
-                result = method(ancestors, node)
-            else:
-                result = None
-            try:
-                ancestors, node = generator.send(Continue if result is None else result)
-            except StopIteration:
-                break
+        # while True:
+        #     method = by_ast_class.get(node.__class__, default_method)
+        #     try:
+        #         if method is not None:
+        #             result = method(ancestors, node)
+        #         else:
+        #             result = None
+        #         ancestors, node = generator.send(Continue if result is None else result)
+        #     except StopIteration:
+        #         break
+        self.__call_helper__(node)
 
         return self.root
 
@@ -344,7 +358,6 @@ class Visitor:
 
         while todo:
             ancestors, node = todo.popleft()
-
             # Here `node` may be either one AST node, a tuple of AST nodes (e.g.
             # SelectStmt.targetList), or even a tuple of tuples of AST nodes (e.g.
             # SelectStmt.valuesList). To simplify code, coerce it to a sequence.
@@ -377,8 +390,6 @@ class Visitor:
                     for sub_index, value in enumerate(sub_node):
                         if isinstance(value, (tuple, ast.Node)):
                             todo.append((sub_ancestors / (sub_node, sub_index), value))
-
-                index += 1
 
         for pending_update in pending_updates:
             pending_update.apply()

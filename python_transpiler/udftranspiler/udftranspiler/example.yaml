@@ -37,6 +37,16 @@ main: |-
         con->Query("CREATE TABLE lineitem AS SELECT * FROM read_csv_auto('dataset/lineitem.csv')");
         {udf_register}
     }}
+    template <typename T>
+    void print_res(duckdb::MaterializedQueryResult *res){{
+        int count = 0;
+        for(auto i=res->begin();i!=res->end();i.Next()){{
+            std::cout<<i.current_row.GetValue<T>(0)<<std::endl;
+            count++;
+            if(count >= 10) break;
+        }}
+        return;
+    }}
 
     static const int EPOCH_NUM = 1;
     int main(int argc, char const *argv[])
@@ -50,13 +60,15 @@ main: |-
         for(int i=0;i<EPOCH_NUM;i++){{
             // start = std::clock();
             start = std::chrono::steady_clock::now();
-            auto result1 = con.Query("select if_func(l_quantity) from lineitem");
+            auto result1 = con.Query("select if_func(l_quantity, l_quantity) from lineitem");
             // auto result1 = con.Query("select l_shipdate + 1 from lineitem");
             end = std::chrono::steady_clock::now();
             if(result1->HasError())
                 std::cout << result1->GetError() << std::endl;
             // result1-;
             time1.push_back(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
+            print_res<int64_t>(result1.get());
+            /**
             int count = 0;
             for(auto i=result1->begin();i!=result1->end();i.Next()) {{
                 auto v = i.current_row.GetValue<duckdb::Value>(0);
@@ -64,6 +76,7 @@ main: |-
                 count++;
                 if(count >= 1000) break;
             }}
+            */
         }}
         std::cout << "Time 1: " << mean(time1) << " ms" << std::endl;
         

@@ -4,7 +4,7 @@ import yaml
 import re
 from pathlib import Path
 from typing import Tuple
-from .utils import Udf_Type, ActiveLanes, parse_assignment, is_const_or_var, function_arg_decl, dbg_assert, substitute_variables, is_loop_tempvar, add_identition
+from .utils import Udf_Type, ActiveLanes, parse_assignment, is_const, is_var, reformat_sql_string, dbg_assert, substitute_variables, is_loop_tempvar, add_identition
 from .query import prepare_statement
 
 
@@ -75,10 +75,12 @@ def translate_query(query: str, active_lanes: ActiveLanes, query_is_assignment: 
     # todo: this substitute is suspectable to errors
     # query = substitute_variables(query, gv.temp_var_substitutes)
 
-    if is_const_or_var(query, gv.func_vars):
-        return '{}({})'.format('const_vector_gen', query)
+    if is_const(query, gv.func_vars):
+        return '{}({})'.format('const_vector_gen', reformat_sql_string(query))
+    if is_var(query, gv.func_vars):
+        return query
     prep_statement, args = prepare_statement(
-        query, gv.func_vars, gv.vector_size)
+        query, gv.func_vars, gv.vector_size, gv.temp_var_substitutes)
 
     function_arg_temp = query_config['function_arg']
     function_args = ', '.join([function_arg_temp.format(i)
@@ -513,7 +515,7 @@ def translate_plpgsql_udf_str(udf_str: str) -> tuple[str]:
         with open("parse_dump.json", "w") as f:
             f.write(json.dumps(ast, indent=2))
     except pglast.parser.ParseError as e:
-        print("Failed to parse UDF: ", e)
+        raise Exception("Failed to parse UDF: ", e)
         return
 
     cpp_str = ""

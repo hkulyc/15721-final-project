@@ -30,17 +30,28 @@ def is_number(s: str):
     return s.replace('.', '', 1).isdigit()
 
 
-def is_const_or_var(expr: str, vars: dict):
+def is_var(expr: str, vars: dict):
+    "check if an expression is a constant such as 2/'string', or variable"
+    if (expr in vars):
+        return True
+    else:
+        return False
+    
+def is_const(expr: str, vars: dict):
     "check if an expression is a constant such as 2/'string', or variable"
     if (expr.startswith('"') and expr.endswith('"')) or (expr.startswith("'") and expr.endswith("'")):
         # it is a string const
         return True
     elif (is_number(expr)):
         return True
-    elif (expr in vars):
-        return True
     else:
-        return False
+        return False 
+
+def reformat_sql_string(sql_str: str):
+    if (sql_str.startswith("'") and sql_str.endswith("'")):
+        return '"'+sql_str[1:-1].replace('"', '\"')+'"'
+    else:
+        return sql_str
 
 
 def function_arg_decl(args, vars):

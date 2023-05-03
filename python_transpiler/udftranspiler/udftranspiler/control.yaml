@@ -102,7 +102,23 @@ for: |-
 
 
 revfor: |- 
-  for (size_t {name} = {start}; {name} >= {end}; {name} -= {step}){{
+  std::vector<bool> {loop_active_var} = {input_active_lanes};
+  std::vector<bool> {continued_var}(args.size());
+  for (size_t {name} = {start}; {name} >= {end}; {name} -= {step}) {{
+    for(size_t {i_var} = 0 ; {i_var} < args.size() ; {i_var}++) {{
+      {continued_var}[{i_var}] = false;
+    }}
+    bool {any_active_lane_var} = false;
+    for(size_t {i_var} = 0 ; {i_var} < args.size() ; {i_var}++) {{
+      if({loop_active_var}[{i_var}] && !{return_mask_var}[{i_var}]) {{
+        {any_active_lane_var} = true;
+        break;
+      }}
+    }}
+    if (!{any_active_lane_var}) {{
+      break;
+    }}
+    
     {body}
   }}
 

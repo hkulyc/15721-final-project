@@ -57,6 +57,13 @@ main: |-
                 std::cout << result1->GetError() << std::endl;
             // result1-;
             time1.push_back(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
+            int count = 0;
+            for(auto i=result1->begin();i!=result1->end();i.Next()) {{
+                auto v = i.current_row.GetValue<duckdb::Value>(0);
+                std::cout<<v<<std::endl;
+                count++;
+                if(count >= 1000) break;
+            }}
         }}
         std::cout << "Time 1: " << mean(time1) << " ms" << std::endl;
         

@@ -100,10 +100,6 @@ for: |-
     {body}
   }}
 
-# for (int {name} = {start}; {name} <= {end}; {name} += {step}){{
-#   {body}
-# }}
-
 
 revfor: |- 
   for (int {name} = {start}; {name} >= {end}; {name} -= {step}){{
@@ -128,10 +124,20 @@ if_block: |-
   {then_body}
   for (int {i_var} = 0 ; {i_var} < {active_var}.size() ; {i_var}++) {{
     if (!{cond_var}[{i_var}].IsNull()) {{
-      {active_var}[{i_var}] = {active_var}[{i_var}] ^ !({cond_var}[{i_var}].template GetValue<bool>());
+      {active_var}[{i_var}] = !{active_var}[{i_var}];
     }}
   }}
   {else}
 
 else: |-
   {else_body}
+
+
+assign: |-
+  /** ASSIGN {assigned_var} **/
+  std::vector<duckdb::Value> {temp_var} = {expr};
+  for(int {i_var} = 0 ; {i_var} < args.size() ; {i_var}++) {{
+    if({active_var}[{i_var}] && !{return_mask_var}[{i_var}]{return_loop_mask_conditions}) {{
+      {assigned_var}[{i_var}] = {temp_var}[{i_var}];
+    }}
+  }}

@@ -141,8 +141,27 @@ def translate_assign_stmt(stmt: dict, active_lanes: ActiveLanes) -> str:
     dbg_assert("PLpgSQL_expr" in stmt,
                'assignment must be in form of expression')
     # todo: need to prepare the left value and '='
+    
     left = parse_assignment(stmt["PLpgSQL_expr"]['query'], gv.func_vars)[0]
-    return left + " = " + translate_expr(stmt["PLpgSQL_expr"], active_lanes, True) + ";"
+
+    return_loop_mask_conditions = ""
+    if active_lanes.get_loop_active() is not None:
+        params = {
+            "loop_active_var": active_lanes.get_loop_active(),
+            "continued_var": active_lanes.get_continues(),
+        }
+        return_loop_mask_conditions = control_config['return_loop_cond'].format(
+            **params)
+    params = {
+        "temp_var": new_variable(),
+        "i_var": new_variable(),
+        "active_var": active_lanes.get_active(),
+        "return_mask_var": active_lanes.get_returns(),
+        "return_loop_mask_conditions": return_loop_mask_conditions,
+        "assigned_var": left,
+        "expr": translate_expr(stmt["PLpgSQL_expr"], active_lanes, True),
+    }
+    return control_config['assign'].format(**params)
 
 
 def translate_return_stmt(return_stmt: dict, active_lanes: ActiveLanes) -> str:

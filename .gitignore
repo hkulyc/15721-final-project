@@ -22,6 +22,11 @@ poc/poc
 poc/Makefile
 parse_dump.json
 poc/CMakeLists.txt
+!python_transpiler/test/
+python_transpiler/test/dataset/lineitem.csv
+python_transpiler/test/*.cpp
+python_transpiler/test/test
+
 
 # test in python_transpiler
 *.o
@@ -35,4 +40,3 @@ tpch-kit/ref_data/3000
 tpch-kit/ref_data/10000
 tpch-kit/ref_data/30000
 tpch-kit/ref_data/100000
-python_transpiler/test/CMakeLists.txt

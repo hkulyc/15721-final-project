@@ -22,7 +22,6 @@ poc/poc
 poc/Makefile
 parse_dump.json
 poc/CMakeLists.txt
-python_transpiler/test/*.cpp
 
 # test in python_transpiler
 *.o

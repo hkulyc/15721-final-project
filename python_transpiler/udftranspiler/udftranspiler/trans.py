@@ -113,8 +113,7 @@ def translate_query(query: str, active_lanes: ActiveLanes, query_is_assignment: 
         'prepare_args': ', '.join(args+active_lanes.get_mask_pointers()),
         'vector_size': gv.vector_size,
         # 'args_count': len(args),
-        'input_size': gv.vector_size*len(args),
-        'for_const': 'i'
+        'input_size': gv.vector_size*len(args)
     }
     params['prepare_input'] = add_identition('\n'.join(
         [query_config['prepare_input'].format(**params, arg=arg) for arg in range(len(args))]))

@@ -75,7 +75,7 @@ def prepare_statement(query: str, vars: dict, vector_size: int, substitutes: dic
             prep_statement.append('col'+str(len(args)))
             var_map[var] = 'col'+str(len(args))
             if var in substitutes:
-                args.append('const_vector_gen({})'.format(substitutes[var]))
+                args.append('const_vector_gen(static_cast<int>({}))'.format(substitutes[var]))
             else:
                 args.append(var)
         else:

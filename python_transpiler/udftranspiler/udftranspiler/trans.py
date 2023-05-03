@@ -81,10 +81,30 @@ def translate_query(query: str, active_lanes: ActiveLanes, query_is_assignment: 
         return query
     prep_statement, args = prepare_statement(
         query, gv.func_vars, gv.vector_size, gv.temp_var_substitutes)
+    # check if there is no variable in the query
+    if len(args) == 0:
+        params = {
+            'db_name': 'db',
+            'prep_statement': prep_statement,
+            'function_name': new_function(),
+            'function_args': '',
+            'prepare_args': ', '.join(active_lanes.get_mask_pointers()),
+            'vector_size': gv.vector_size,
+            'input_size': '0',
+            'query': '"select {}"'.format(query)
+        }
+        params['prepare_input'] = add_identition('\n'.join(
+            [query_config['prepare_input'].format(**params, arg=arg) for arg in range(len(args))]))
+        if not gv.query_macro:
+            gv.global_macros.append(query_config['macro'].format(**params))
+            gv.query_macro = True
+        gv.global_variables.append(query_config['global'].format(**params))
+        gv.global_functions.append(query_config['function_no_var'].format(**params))
+        return '{}'.format(query_config['function_call'].format(**params))
 
     function_arg_temp = query_config['function_arg']
     function_args = ', '.join([function_arg_temp.format(i)
-                              for i in range(len(args))])
+                              for i in range(len(args))])+', '
     params = {
         'db_name': 'db',
         'prep_statement': prep_statement,
@@ -93,7 +113,8 @@ def translate_query(query: str, active_lanes: ActiveLanes, query_is_assignment: 
         'prepare_args': ', '.join(args+active_lanes.get_mask_pointers()),
         'vector_size': gv.vector_size,
         # 'args_count': len(args),
-        'input_size': gv.vector_size*len(args)
+        'input_size': gv.vector_size*len(args),
+        'for_const': 'i'
     }
     params['prepare_input'] = add_identition('\n'.join(
         [query_config['prepare_input'].format(**params, arg=arg) for arg in range(len(args))]))
@@ -103,12 +124,6 @@ def translate_query(query: str, active_lanes: ActiveLanes, query_is_assignment: 
     gv.global_variables.append(query_config['global'].format(**params))
     gv.global_functions.append(query_config['function'].format(**params))
     return '{}'.format(query_config['function_call'].format(**params))
-
-    # print(query_config['global'].format(**params))
-    # temp_str = f"t{gv.temp_count}"
-    # gv.temp_count += 1
-    # return f"initialization of {temp_str} = {query};", temp_str
-    return
 
 
 def translate_expr(expr: dict, active_lanes: ActiveLanes, query_is_assignment: bool = False) -> str:

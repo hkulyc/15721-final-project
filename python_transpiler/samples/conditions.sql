@@ -10,7 +10,7 @@ BEGIN
     elsif cid > 5 then
         cid := cid * 2;
     else
-        cid := cid - 1;
+        cid := 1 - 1;
         cid := cid + 1;
     end if;
     RETURN concat(cid,pd2);

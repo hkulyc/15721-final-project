@@ -47,7 +47,7 @@ prepare_input: |-
   
 function: |-
     // valid_mask and return_mask should not be null
-    std::vector<duckdb::Value> {function_name}({function_args}, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){{
+    std::vector<duckdb::Value> {function_name}({function_args}std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){{
         // prepare ps input
         std::vector<duckdb::Value> input;
         input.reserve({input_size});
@@ -66,6 +66,25 @@ function: |-
         ret.reserve(input_size);
         for (idx_t i = 0; i < input_size; i++) {{
             ret.emplace_back(data->GetValue(0, i));
+        }}
+        return ret;
+    }}
+
+function_no_var: |-
+    // valid_mask and return_mask should not be null
+    std::vector<duckdb::Value> {function_name}(std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){{
+        size_t input_size = valid_mask->size();
+        auto res = trans_con.Query({query});
+        if(res->HasError()){{
+            throw std::runtime_error("Error when waiting for query result.");
+            return std::vector<duckdb::Value>();
+        }}
+        auto data = res->Fetch();
+        // prepare result
+        std::vector<duckdb::Value> ret;
+        ret.reserve(input_size);
+        for (idx_t i = 0; i < input_size; i++) {{
+            ret.emplace_back(data->GetValue(0, 0));
         }}
         return ret;
     }}

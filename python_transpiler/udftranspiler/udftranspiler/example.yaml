@@ -105,7 +105,6 @@ main_tpch: |-
     }}
 
     void prepare_env(duckdb::Connection *con){{
-        prepare_udf_env();
         con->Query("CREATE TABLE NATION  ( N_NATIONKEY  INTEGER NOT NULL, \
                             N_NAME       CHAR(25) NOT NULL, \
                             N_REGIONKEY  INTEGER NOT NULL, \

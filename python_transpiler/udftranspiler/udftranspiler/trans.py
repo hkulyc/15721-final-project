@@ -81,13 +81,15 @@ def translate_query(query: str, active_lanes: ActiveLanes, query_is_assignment: 
     # query = substitute_variables(query, gv.temp_var_substitutes)
 
     if is_const(query):
-        if (expected_type == None and is_decimal(query)):
-            # should not reach
+        if (expected_type == None):
             raise Exception('unreachable')
-            width, scale = find_width_scale(query)
-            int_type = get_decimal_int_type(width, scale)
-            raw_int = get_decimal_int(query, width, scale)
-            return 'const_vector_gen_decimal<{}>({}, {}, {})'.format(int_type, raw_int, str(width), str(scale))
+            if is_decimal(query):
+                # should not reach
+                raise Exception('unreachable')
+                width, scale = find_width_scale(query)
+                int_type = get_decimal_int_type(width, scale)
+                raw_int = get_decimal_int(query, width, scale)
+                return 'const_vector_gen_decimal<{}>({}, {}, {})'.format(int_type, raw_int, str(width), str(scale))
         elif expected_type.is_decimal():
             # if left in vars and vars[left][0].duckdb_type.is_decimal():
             width, scale = expected_type.get_decimal_info()
@@ -502,7 +504,7 @@ def get_function_vars(datums: list, udf_str: str, active_lanes: ActiveLanes) -> 
             else:
                 if "default_val" in var:
                     query_result = translate_expr(
-                        var["default_val"]["PLpgSQL_expr"], active_lanes, False)
+                        var["default_val"]["PLpgSQL_expr"], active_lanes, False, udf_type)
                     initializations.append(
                         function_config["fdecl_var"].format(
                             name=name,

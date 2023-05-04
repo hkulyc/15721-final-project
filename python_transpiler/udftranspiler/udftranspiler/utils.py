@@ -250,7 +250,7 @@ class Udf_Type:
     def is_decimal(self):
         return self.duckdb_type.startswith("DECIMAL")
     
-    def get_decimal_precision(self):
+    def get_decimal_info(self):
         if not self.is_decimal():
             raise Exception("Not a decimal type")
         res = re.findall(r"DECIMAL(\((\d+),(\d+)\))", self.duckdb_type, flags=re.IGNORECASE)
@@ -340,5 +340,8 @@ class ActiveLanes:
 
 ############# Utility functions for compilation ##########
 def add_match(l_type: list, r_type: list):
-    return True
+    return False
+
+def comparison_match(l_type: list, r_type: list):
+    return 'BOOLEAN'
 

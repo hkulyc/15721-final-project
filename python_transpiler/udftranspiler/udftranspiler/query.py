@@ -39,17 +39,33 @@ class QueryTraverser(Visitor):
                     return False
                 dbg_assert(None not in node.extra['logical_type'], 'Var logical type wrong')
                 return True
+            elif node_type == pglast.ast.A_Const:
+                node.extra['logical_type'] = node.val
+                return True
             elif node_type == pglast.ast.A_Expr:
                 dbg_assert(len(node.name) == 1, 'A_Expr has more than one name: {}'.format(node.name))
                 l_type = node.lexpr.extra['logical_type']
                 r_type = node.rexpr.extra['logical_type']
                 name = node.name[0].val
-                res_type = add_match(l_type, r_type)
-                if (name == '+' or name == '-') and res_type:
-                    node.extra['logical_type'] = res_type
-                    return True
+                # + / -
+                if (name == '+' or name == '-'):
+                    res_type = add_match(l_type, r_type)
+                    if res_type:
+                        node.extra['logical_type'] = res_type
+                        return True
+                    else: return False
+                
+                # > / < / >= / <=
+                elif (name == '>' or name == '<' or name == '>=' or name == '<='):
+                    res_type = comparison_match(l_type, r_type)
+                    if res_type:
+                        node.extra['logical_type'] = res_type
+                        return True
+                    else: return False
+
                 else:
                     return False
+                
                 
             elif node_type == pglast.ast.ResTarget:
                 return node.val.extra.get('compile', False)
@@ -67,6 +83,10 @@ class QueryTraverser(Visitor):
     def compile_callback(self, node):
         if(self.can_compile(node)):
             node.extra['compile'] = True
+        else:
+            if hasattr(node, 'extra'):
+                node.extra.clear()
+                node.extra['compile'] = False
 
     def rules(self, ancestors, node):
         if(type(node) == pglast.ast.ColumnRef):
@@ -115,7 +135,7 @@ def prepare_statement(query: str, vars: dict, vector_size: int, substitutes: dic
     # print(res)
     trvr = QueryTraverser(vars, substitutes)
     trvr(res)
-    # print(res)
+    print(res)
     if res[0].stmt.extra.get('compile', False):
         print('Can compile: {}'.format(query))
     else:

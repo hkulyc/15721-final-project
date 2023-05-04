@@ -135,11 +135,11 @@ def prepare_statement(query: str, vars: dict, vector_size: int, substitutes: dic
     # print(res)
     trvr = QueryTraverser(vars, substitutes)
     trvr(res)
-    print(res)
-    if res[0].stmt.extra.get('compile', False):
-        print('Can compile: {}'.format(query))
-    else:
-        print('Can not compile: {}'.format(query))
+    # print(res)
+    # if res[0].stmt.extra.get('compile', False):
+    #     print('Can compile: {}'.format(query))
+    # else:
+    #     print('Can not compile: {}'.format(query))
     # sort the modifier rule and apply the rules in order
     modifier = sorted(trvr.sql_modifier, key=lambda x: x[0])
     args = []

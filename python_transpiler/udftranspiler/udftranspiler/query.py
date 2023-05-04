@@ -50,6 +50,7 @@ class QueryTraverser(Visitor):
                     return True
                 else:
                     return False
+                
             elif node_type == pglast.ast.ResTarget:
                 return node.val.extra.get('compile', False)
             elif node_type == pglast.ast.SelectStmt:
@@ -77,7 +78,7 @@ class QueryTraverser(Visitor):
     
     def visit(self, ancestors, node):
         self.rules(ancestors, node)
-        print(ancestors, ':', node(depth=0, skip_none=True))
+        # print(ancestors, ':', node(depth=0, skip_none=True))
 
 
 def parse_sql_query(sql: str):
@@ -110,11 +111,15 @@ def prepare_statement(query: str, vars: dict, vector_size: int, substitutes: dic
     except pglast.parser.ParseError as e:
         query = 'select '+query
     res = parse_sql_query(query)
-    print(res)
+    dbg_assert(len(res) == 1, 'unsupported query: {}'.format(res))
+    # print(res)
     trvr = QueryTraverser(vars, substitutes)
     trvr(res)
-    # print(trvr.sql_modifier)
-    # print(query)
+    # print(res)
+    if res[0].stmt.extra.get('compile', False):
+        print('Can compile: {}'.format(query))
+    else:
+        print('Can not compile: {}'.format(query))
     # sort the modifier rule and apply the rules in order
     modifier = sorted(trvr.sql_modifier, key=lambda x: x[0])
     args = []

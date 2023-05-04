@@ -6,7 +6,6 @@
 #include <vector>
 #include <string>
 #include <stdlib.h>
-#include "conn_pool.hpp"
 using namespace duckdb;
 // #include "../libduckdb-osx-universal/duckdb.h"
 #define EPOCH_NUM 1
@@ -22,28 +21,27 @@ duckdb::DuckDB db2(nullptr);
 //     return a;
 // }
 
-Connection_Pool conn_pool(&db2, 10);
 
-int64_t add_one(int64_t a){
-    int id;
-    PreparedStatement *state = conn_pool.get_prepared(0, &id);
-    if(state == NULL){
-        throw std::runtime_error("No connection is free.");
-        return 0;
-    }
-    // conn_pool.release_prepared(id);
-    // return id;
-    auto res = state->Execute(a);
-    if(!res->HasError()){
-        int64_t ret = res->Fetch()->GetValue(0,0).GetValue<int64_t>();
-        conn_pool.release_prepared(id);
-        return ret;
-    }
-    else {
-        throw std::runtime_error("Error when waiting for query result.");
-        return 0;
-    }
-}
+// int64_t add_one(int64_t a){
+//     int id;
+//     PreparedStatement *state = conn_pool.get_prepared(0, &id);
+//     if(state == NULL){
+//         throw std::runtime_error("No connection is free.");
+//         return 0;
+//     }
+//     // conn_pool.release_prepared(id);
+//     // return id;
+//     auto res = state->Execute(a);
+//     if(!res->HasError()){
+//         int64_t ret = res->Fetch()->GetValue(0,0).GetValue<int64_t>();
+//         conn_pool.release_prepared(id);
+//         return ret;
+//     }
+//     else {
+//         throw std::runtime_error("Error when waiting for query result.");
+//         return 0;
+//     }
+// }
 
 thread_local duckdb::Connection con2(db2);
 // duckdb::Connection con2(db);
@@ -275,7 +273,7 @@ void prepare_env(duckdb::Connection *con){
     // "PRIMARY KEY (l_orderkey,l_linenumber))";
     // con->Query(table_schema);
     // con->Query("copy lineitem from 'lineitem.csv' (AUTO_DETECT TRUE)");
-    conn_pool.add_prepared("select $1+1");
+    // conn_pool.add_prepared("select $1+1");
 
     con->Query("CREATE TABLE lineitem AS SELECT * FROM read_csv_auto('dataset/lineitem.csv')");
     // con->CreateScalarFunction<int64_t, int64_t>("random_op", &random_op);
@@ -284,7 +282,7 @@ void prepare_env(duckdb::Connection *con){
     // con->CreateVectorizedFunction<int64_t, int64_t>("udf_vectorized_int", &udf_vectorized2<int64_t>);
     con->CreateVectorizedFunction<string_t, string_t>("udf_vectorized_int", &udf_vectorized2<string_t>);
 
-    con->CreateScalarFunction<int64_t, int64_t>("add_one", &add_one);
+    // con->CreateScalarFunction<int64_t, int64_t>("add_one", &add_one);
     con->CreateVectorizedFunction("date_udf", {duckdb::LogicalType::DATE}, duckdb::LogicalType::DATE, &date_udf);
     // con->CreateScalarFunction<int64_t, int64_t>("classify", &classify);
     // con->Query("CREATE TABLE lineitem (id int, CO decimal(4,2) DEFAULT NULL, PRIMARY KEY (id))");
@@ -313,12 +311,14 @@ void print_res(duckdb::MaterializedQueryResult *res){
 int main(int argc, char const *argv[])
 {
     duckdb::Connection con(db);
-    prepare_env(&con);
+    // prepare_env(&con);
     // auto result1 = con.Query("select random_op(l_quantity) from lineitem");
     // auto result1 = con.Query("select udf_vectorized_int(l_quantity) from lineitem");
     // result1->Print();
     // auto result = con.Query("SELECT 42");
     // std::clock_t    start;
+    std::cout<<duckdb::Value(234).type().ToString()<<std::endl;
+    std::cout<<duckdb::ValueOperations::GreaterThan(duckdb::Value(234), duckdb::Value(5))<<std::endl;
     std::chrono::time_point<std::chrono::steady_clock> start;
     std::chrono::time_point<std::chrono::steady_clock> end;
     // char *tmp = (char *)malloc(5);

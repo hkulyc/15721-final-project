@@ -4,7 +4,8 @@ import yaml
 import re
 from pathlib import Path
 from typing import Tuple
-from .utils import Udf_Type, ActiveLanes, parse_assignment, is_const, is_var, reformat_sql_string, dbg_assert, substitute_variables, is_loop_tempvar, add_identition
+# from .utils import Udf_Type, ActiveLanes, parse_assignment, is_const, is_decimal, get_decimal_int, is_var, reformat_sql_string, dbg_assert, substitute_variables, is_loop_tempvar, add_identition, *
+from .utils import *
 from .query import prepare_statement
 
 
@@ -62,7 +63,7 @@ def new_variable():
     return 'tempvar'+str(gv.temp_var_count)
 
 
-def translate_query(query: str, active_lanes: ActiveLanes, query_is_assignment: bool) -> str:
+def translate_query(query: str, active_lanes: ActiveLanes, query_is_assignment: bool, expected_type: Udf_Type) -> str:
     """
     Transpile a query statement.
     This will return a string that initializes the temp, and the temp name.
@@ -73,12 +74,26 @@ def translate_query(query: str, active_lanes: ActiveLanes, query_is_assignment: 
     query = query.replace('\n', ' ')
 
     if query_is_assignment:
-        query = parse_assignment(query, gv.func_vars)[1]
+        left, query = parse_assignment(query, gv.func_vars)
+    # left = left.strip()
     query = query.strip()
     # todo: this substitute is suspectable to errors
     # query = substitute_variables(query, gv.temp_var_substitutes)
 
-    if is_const(query, gv.func_vars):
+    if is_const(query):
+        if (expected_type == None and is_decimal(query)):
+            # should not reach
+            raise Exception('unreachable')
+            width, scale = find_width_scale(query)
+            int_type = get_decimal_int_type(width, scale)
+            raw_int = get_decimal_int(query, width, scale)
+            return 'const_vector_gen_decimal<{}>({}, {}, {})'.format(int_type, raw_int, str(width), str(scale))
+        elif expected_type.is_decimal():
+            # if left in vars and vars[left][0].duckdb_type.is_decimal():
+            width, scale = expected_type.get_decimal_info()
+            int_type = get_decimal_int_type(width, scale)
+            raw_int = get_decimal_int(query, width, scale)
+            return 'const_vector_gen_decimal<{}>({}, {}, {})'.format(int_type, raw_int, str(width), str(scale))
         return '{}({})'.format('const_vector_gen', reformat_sql_string(query))
     if is_var(query, gv.func_vars):
         return query
@@ -129,10 +144,10 @@ def translate_query(query: str, active_lanes: ActiveLanes, query_is_assignment: 
     return '{}'.format(query_config['function_call'].format(**params))
 
 
-def translate_expr(expr: dict, active_lanes: ActiveLanes, query_is_assignment: bool = False) -> str:
+def translate_expr(expr: dict, active_lanes: ActiveLanes, query_is_assignment: bool = False, expected_type: Udf_Type = None) -> str:
     # print("translate_expr()",expr)
     if "query" in expr and len(expr) == 1:
-        return translate_query(expr['query'], active_lanes, query_is_assignment)
+        return translate_query(expr['query'], active_lanes, query_is_assignment, expected_type)
     else:
         raise Exception('Unsupport PLpgSQL_expr: {}'.format(expr))
 
@@ -164,7 +179,7 @@ def translate_assign_stmt(stmt: dict, active_lanes: ActiveLanes) -> str:
         "return_mask_var": active_lanes.get_returns(),
         "return_loop_mask_conditions": return_loop_mask_conditions,
         "assigned_var": left,
-        "expr": translate_expr(stmt["PLpgSQL_expr"], active_lanes, True),
+        "expr": translate_expr(stmt["PLpgSQL_expr"], active_lanes, True, gv.func_vars[left][0]),
     }
     return control_config['assign'].format(**params)
 
@@ -414,7 +429,7 @@ def translate_body(body: list, active_lanes: ActiveLanes, expected_type: Udf_Typ
             output += translate_return_stmt(
                 stmt["PLpgSQL_stmt_return"], active_lanes)
         elif ("PLpgSQL_expr" in stmt):
-            output += translate_expr(stmt["PLpgSQL_expr"], active_lanes, False)
+            output += translate_expr(stmt["PLpgSQL_expr"], active_lanes, False, expected_type)
         elif ("PLpgSQL_stmt_assign" in stmt):
             output += translate_assign_stmt(
                 stmt["PLpgSQL_stmt_assign"], active_lanes)

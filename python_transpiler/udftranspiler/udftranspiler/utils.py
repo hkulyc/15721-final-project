@@ -39,7 +39,7 @@ def is_var(expr: str, vars: dict):
         return False
 
 
-def is_const(expr: str, vars: dict):
+def is_const(expr: str):
     "check if an expression is a constant such as 2/'string', or variable"
     if (expr.startswith('"') and expr.endswith('"')) or (expr.startswith("'") and expr.endswith("'")):
         # it is a string const
@@ -48,7 +48,68 @@ def is_const(expr: str, vars: dict):
         return True
     else:
         return False
+    
+def is_decimal(expr: str):
+    return is_number(expr) and expr.__contains__('.')
 
+def find_width_scale(dec: str):
+    "find the appropriate width and scale for the decimal constant"
+    dec = dec.strip('0')
+    if dec.__contains__('.'):
+        width = len(dec)-1
+        scale = width - dec.find('.')
+        return width, scale
+    else:
+        return len(dec), 0
+
+def get_decimal_int_type(width, scale):
+    # Width	Internal	Size (Bytes)
+    # 1-4	INT16	2
+    # 5-9	INT32	4
+    # 10-18	INT64	8
+    # 19-38	INT128	16
+    dbg_assert(width > 0, 'width of decimal should be > 0')
+    if width <= 4:
+        return 'int16_t'
+    elif width <= 9:
+        return 'int32_t'
+    elif width <= 18:
+        return 'int64_t'
+    elif width <= 38:
+        return 'duckdb::hugeint_t'
+    else:
+        raise Exception('width larger than 38')
+    
+def get_decimal_int(dec: str, width, scale):
+    # decimal (18, 3) '50' -> 0.05
+    dec = dec.strip('0')
+    if not dec.__contains__('.'):
+        dec = dec+'.'
+    ind = dec.find('.') + 1
+    pad = scale - (len(dec) - ind)
+    if pad < 0:
+        raise Exception('decimal constant {} overflow'.format(dec))
+    if width <= 18:
+        dec = dec.replace('.', '')+'0'*pad
+        for i in range(len(dec)):
+            if(dec[i] != '0'):
+                dec = dec[i:]
+                break
+        dbg_assert(len(dec) <= width, 'decimal constant {} overflow'.format(dec))
+        return dec
+    else:
+        dec = dec.replace('.', '')+'0'*pad
+        for i in range(len(dec)):
+            if(dec[i] != '0'):
+                dec = dec[i:]
+                break
+        dbg_assert(len(dec) <= width, 'decimal constant {} overflow'.format(dec))
+        if(len(dec) <= 64): #todo: duckdb::hugeint_t how to split between the two integers
+            return '{{{}, {}}}'.format('0', dec)
+        else:
+            return '{{{}, {}}}'.format(dec[0:len(dec)-64], dec[len(dec)-64:])
+
+    
 
 def reformat_sql_string(sql_str: str):
     if (sql_str.startswith("'") and sql_str.endswith("'")):

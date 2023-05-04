@@ -18,6 +18,17 @@ macro: |-
         return cons;
     }}
 
+    template <typename T>
+    std::vector<duckdb::Value> const_vector_gen_decimal(T raw_int, int8_t width, int8_t scale){{
+        // generates vector_size copies of val to store in the vector
+        std::vector<duckdb::Value> cons;
+        cons.reserve(2048);
+        for (int i = 0; i < 2048; i++){{
+            cons.emplace_back(duckdb::Value::DECIMAL(raw_int, width, scale));
+        }}
+        return cons;
+    }}
+
 global: |-
     thread_local std::unique_ptr<duckdb::PreparedStatement> {function_name}_prepare = trans_con.Prepare("{prep_statement}");
 

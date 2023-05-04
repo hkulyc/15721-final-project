@@ -390,7 +390,7 @@ class Visitor:
                     for sub_index, value in enumerate(sub_node):
                         if isinstance(value, (tuple, ast.Node)):
                             todo.append((sub_ancestors / (sub_node, sub_index), value))
-
+                index += 1
         for pending_update in pending_updates:
             pending_update.apply()
             if pending_update.member is None:

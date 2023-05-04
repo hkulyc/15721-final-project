@@ -127,10 +127,11 @@ double mean(std::vector<double> v){
     return sum/v.size();
 }
 
+template <typename T>
 void print_res(duckdb::MaterializedQueryResult *res){
     int count = 0;
     for(auto i=res->begin();i!=res->end();i.Next()){
-        std::cout<<i.current_row.GetValue<int32_t>(0)<<std::endl;
+        std::cout<<i.current_row.GetValue<T>(0)<<std::endl;
         count++;
         if(count >= 10) break;
     }
@@ -152,7 +153,7 @@ int main(int argc, char const *argv[])
         // auto result1 = con.Query("select l_quantity+1 from lineitem");
         auto result1 = con.Query("select l_shipdate + 1 from lineitem");
         end = std::chrono::steady_clock::now();
-        print_res(result1.get());
+        print_res<int64_t>(result1.get());
         // result1-;
         time1.push_back(std::chrono::duration_cast<milliseconds>(end - start).count());
     }
@@ -164,7 +165,7 @@ int main(int argc, char const *argv[])
         start = std::chrono::steady_clock::now();
         auto result2 = con.Query("select date_vector_udf(l_shipdate) from lineitem");
         end = std::chrono::steady_clock::now();
-        print_res(result2.get());
+        print_res<int64_t>(result2.get());
         time2.push_back(std::chrono::duration_cast<milliseconds>(end - start).count());
     }
     std::cout << "Time 1.2: " << mean(time2) << " ms" << std::endl;

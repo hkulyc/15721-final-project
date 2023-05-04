@@ -171,8 +171,8 @@ class Udf_Type:
             raise Exception("Unknown type: ", type_name)
 
     def __init__(self, duckdb_type: str, udf_str: str = ""):
-        duckdb_type = self.resolve_type(duckdb_type, udf_str)
-        self.duckdb_type = duckdb_type
+        self.duckdb_type = self.resolve_type(duckdb_type, udf_str)
+        
 
     def __str__(self):
         return f"{self.duckdb_type}"
@@ -185,6 +185,16 @@ class Udf_Type:
 
     def get_cpp_sqltype(self):
         return f"duckdb::LogicalType::{self.duckdb_type}"
+    
+    def is_decimal(self):
+        return self.duckdb_type.startswith("DECIMAL")
+    
+    def get_decimal_precision(self):
+        if not self.is_decimal():
+            raise Exception("Not a decimal type")
+        res = re.findall(r"DECIMAL(\((\d+),(\d+)\))", self.duckdb_type, flags=re.IGNORECASE)
+        assert len(res) == 1
+        return int(res[0][1]), int(res[0][2])
 
 
 class ActiveLanes:

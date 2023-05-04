@@ -60,7 +60,7 @@ class QueryTraverser(Visitor):
             else:
                 return False
         except Exception as e:
-            print(e)
+            # print(e)
             return False
         
     def compile_callback(self, node):
@@ -77,7 +77,7 @@ class QueryTraverser(Visitor):
     
     def visit(self, ancestors, node):
         self.rules(ancestors, node)
-        print(ancestors, ':', node(depth=0, skip_none=True))
+        # print(ancestors, ':', node(depth=0, skip_none=True))
 
 
 def parse_sql_query(sql: str):
@@ -110,7 +110,7 @@ def prepare_statement(query: str, vars: dict, vector_size: int, substitutes: dic
     except pglast.parser.ParseError as e:
         query = 'select '+query
     res = parse_sql_query(query)
-    print(res)
+    # print(res)
     trvr = QueryTraverser(vars, substitutes)
     trvr(res)
     # print(trvr.sql_modifier)

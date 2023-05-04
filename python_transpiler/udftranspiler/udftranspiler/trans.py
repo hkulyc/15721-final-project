@@ -542,7 +542,7 @@ def translate_function(function: dict, udf_str: str, active_lanes: ActiveLanes) 
         }
         args_str += function_config["farg"].format(**params)
         args_str += "\n"
-    
+
     params = {
         "return_mask_var": return_mask_var,
         "active_lanes_var": active_lanes_var,
@@ -605,10 +605,11 @@ def translate_plpgsql_udf_str(udf_str: str) -> tuple[str]:
             gv.func_vars = {}
             gv.func_name = function_names[idx]
             gv.func_return_type = Udf_Type(return_types[idx][0], udf_str)
-            func_ret = translate_function(
+            output, reg, decl = translate_function(
                 function["PLpgSQL_function"], udf_str, ActiveLanes())
-            cpp_str += func_ret[0]
+            cpp_str += output
             cpp_str += "\n\n"
-            regs.append(func_ret[1])
-            decls.append(func_ret[2])
+            regs.append(reg)
+            decls.append(decl)
+
     return "\n".join(gv.global_macros + gv.global_variables + gv.global_functions) + "\n" + cpp_str, '\n'.join(regs), '\n'.join(decls)

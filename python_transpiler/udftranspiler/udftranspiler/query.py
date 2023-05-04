@@ -61,7 +61,7 @@ class QueryTraverser(Visitor):
             else:
                 return False
         except Exception as e:
-            print(e)
+            # print(e)
             return False
         
     def compile_callback(self, node):

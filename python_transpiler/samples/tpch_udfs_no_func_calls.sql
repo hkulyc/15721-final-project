@@ -1,14 +1,14 @@
 -- NOTE: "total_value" and "avg_actbal" udfs are not supported since they have select statements
 
 create function discount_price(extprice decimal(12,2), disc decimal(12,2))
-returns decimal(12,2) as $$
+returns decimal(18,4) as $$
 begin
     return extprice*(1-disc);
 end $$
 LANGUAGE PLPGSQL;
 
 create function discount_taxprice(extprice decimal(12,2), disc decimal(12,2), tax decimal(12,2))
-returns decimal(12,2) as $$
+returns decimal(18,6) as $$
 begin
     return extprice*(1-disc) * (1+tax);
 end $$
@@ -18,7 +18,7 @@ create function profit_amount(extprice decimal(12,2),
                                   discount decimal(12,2),
                                   suppcost decimal(12,2),
                                   qty int)
-returns decimal(12,2) as $$
+returns decimal(18,4) as $$
 begin
     return extprice*(1-discount)-suppcost*qty;
 end $$
@@ -174,7 +174,7 @@ begin
             val = 1;
         end if;
     elsif(mode = 'low') then
-        if(oprio = '1-URGENT' AND oprio = '2-HIGH') then
+        if(oprio <> '1-URGENT' AND oprio <> '2-HIGH') then
             val = 1;
         end if;
     end if;
@@ -187,9 +187,9 @@ create function q12conditions(shipmode char,
                               receiptdate date,
                               shipdate date)
 returns int as $$
-declare stdatechar varchar = '1995-09-01';
+declare stdatechar varchar = '1994-01-01';
 declare stdate date = cast(stdatechar as date);
-declare newdate date = stdate + (INTERVAL '1 MONTH'); -- dateadd(mm, 1, stdate);
+declare newdate date = stdate + (INTERVAL '1 YEAR'); -- dateadd(year, 1, stdate);
 begin
     if(shipmode = 'MAIL' OR shipmode ='SHIP') then
         if(receiptdate < '1994-01-01') then

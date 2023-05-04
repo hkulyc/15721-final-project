@@ -1,6 +1,5 @@
 fshell: |-
   void {function_name}(duckdb::DataChunk &args, duckdb::ExpressionState &state, duckdb::Vector &result) {{
-    duckdb::UnifiedVectorFormat vdata;
     std::vector<bool> {return_mask_var}(args.size());
     std::vector<duckdb::Value> return_values(args.size());
     for(size_t i = 0; i < args.size() ; i++) {{
@@ -26,12 +25,9 @@ fshell: |-
 #   {type} {name}
 
 farg: |-
-  args.data[{arg_num}].ToUnifiedFormat(args.size(), vdata);
   std::vector<duckdb::Value> {name}(args.size());
   for (idx_t {i_var} = 0; {i_var} < args.size(); {i_var}++) {{
-    if (vdata.validity.GetValidityEntry({i_var})) {{
-      {name}[{i_var}] = args.data[{arg_num}].GetValue({i_var});
-    }}
+    {name}[{i_var}] = args.data[{arg_num}].GetValue({i_var});
   }}
 
 fdecl_var: |-

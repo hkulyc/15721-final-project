@@ -265,3 +265,9 @@ class ActiveLanes:
     def get_mask_names(self):
         "get a list of names of the four masks"
         return [self.get_active(), self.get_returns(), self.get_loop_active() or 'NULL', self.get_continues() or 'NULL']
+    
+
+############# Utility functions for compilation ##########
+def add_match(l_type: list, r_type: list):
+    return True
+

@@ -23,8 +23,7 @@ file_option = click.option(
 def main(filepath: str, output: str) -> None:
     """Transpile a UDF from PLpgSQL to C++."""
     with open(filepath, 'r') as file:
-        x = translate_plpgsql_udf_str(file.read())
-        cpp_output, regs, decls = x
+        cpp_output, regs, decls = translate_plpgsql_udf_str(file.read())
     if output:
         if not output.endswith('/'):
             output = output + '/'
@@ -45,6 +44,6 @@ def main(filepath: str, output: str) -> None:
             'udf_register': regs
         }
         with open(test_file, 'w') as file:
-            file.write(example_config['main'].format(**param))
+            file.write(example_config['main_tpch'].format(**param))
     else:
         print(cpp_output)

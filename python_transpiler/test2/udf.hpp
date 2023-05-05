@@ -1,2 +1,3 @@
 #include "duckdb.hpp"
-void if_func(duckdb::DataChunk &args, duckdb::ExpressionState &state, duckdb::Vector &result);
+void line_count(duckdb::DataChunk &args, duckdb::ExpressionState &state, duckdb::Vector &result);
+void q12conditions(duckdb::DataChunk &args, duckdb::ExpressionState &state, duckdb::Vector &result);

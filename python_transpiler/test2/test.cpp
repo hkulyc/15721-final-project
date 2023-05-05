@@ -8,19 +8,15 @@
 
 duckdb::DuckDB main_db(nullptr);
 
-double mean(std::vector<double> v)
-{
+double mean(std::vector<double> v){
     double sum = 0;
-    for (int i : v)
-    {
+    for(int i:v){
         sum += i;
     }
-    return sum / v.size();
+    return sum/v.size();
 }
 
-void prepare_env(duckdb::Connection *con)
-{
-    // prepare_udf_env();
+void prepare_env(duckdb::Connection *con){
     con->Query("CREATE TABLE NATION  ( N_NATIONKEY  INTEGER NOT NULL, \
                         N_NAME       CHAR(25) NOT NULL, \
                         N_REGIONKEY  INTEGER NOT NULL, \
@@ -77,7 +73,7 @@ CREATE TABLE LINEITEM ( L_ORDERKEY    INTEGER NOT NULL,\
                          L_PARTKEY     INTEGER NOT NULL,\
                          L_SUPPKEY     INTEGER NOT NULL,\
                          L_LINENUMBER  INTEGER NOT NULL,\
-                         L_QUANTITY    DECIMAL(15,2) NOT NULL,\
+                         L_QUANTITY    INTEGER NOT NULL,\
                          L_EXTENDEDPRICE  DECIMAL(15,2) NOT NULL,\
                          L_DISCOUNT    DECIMAL(15,2) NOT NULL,\
                          L_TAX         DECIMAL(15,2) NOT NULL,\
@@ -97,7 +93,8 @@ CREATE TABLE LINEITEM ( L_ORDERKEY    INTEGER NOT NULL,\
     con->Query("INSERT INTO CUSTOMER (SELECT * FROM read_csv_auto('dataset/customer.tbl'))");
     con->Query("INSERT INTO ORDERS (SELECT * FROM read_csv_auto('dataset/orders.tbl'))");
     con->Query("INSERT INTO LINEITEM (SELECT * FROM read_csv_auto('dataset/lineitem.tbl'))");
-    con->CreateVectorizedFunction("if_func", {duckdb::LogicalType::INTEGER, duckdb::LogicalType::INTEGER, duckdb::LogicalType::INTEGER, duckdb::LogicalType::INTEGER, duckdb::LogicalType::INTEGER, duckdb::LogicalType::INTEGER, duckdb::LogicalType::INTEGER, duckdb::LogicalType::INTEGER, duckdb::LogicalType::VARCHAR}, duckdb::LogicalType::INTEGER, &if_func);
+    con->CreateVectorizedFunction("line_count", {duckdb::LogicalType::VARCHAR, duckdb::LogicalType::VARCHAR}, duckdb::LogicalType::INTEGER, &line_count);
+con->CreateVectorizedFunction("q12conditions", {duckdb::LogicalType::VARCHAR, duckdb::LogicalType::DATE, duckdb::LogicalType::DATE, duckdb::LogicalType::DATE}, duckdb::LogicalType::INTEGER, &q12conditions);
 }
 
 static const int EPOCH_NUM = 1;
@@ -111,11 +108,12 @@ int main(int argc, char const *argv[])
     std::chrono::time_point<std::chrono::steady_clock> end;
     //========== Test 1 ===========
     std::vector<double> time1;
-    for (int i = 0; i < EPOCH_NUM; i++)
-    {
+    for(int i=0;i<EPOCH_NUM;i++){
         // start = std::clock();
         start = std::chrono::steady_clock::now();
-        auto result1 = con.Query("select s_acctbal,s_name,n_name,p_partkey,p_mfgr,s_address,s_phone,s_comment from part, supplier, partsupp, nation, region where p_partkey = ps_partkey and s_suppkey = ps_suppkey and p_size = 15 and p_type like '%BRASS' and s_nationkey = n_nationkey and n_regionkey = r_regionkey and r_name = 'EUROPE' and ps_supplycost = ( select 	min(ps_supplycost) from 	partsupp, 	supplier, 	nation, 	region where 	p_partkey = ps_partkey 	and s_suppkey = ps_suppkey 	and s_nationkey = n_nationkey 	and n_regionkey = r_regionkey 	and r_name = 'EUROPE' 	) order by 	s_acctbal desc, 	n_name, 	s_name, 	p_partkey limit 100;");
+        auto result1 = con.Query("SELECT L_SHIPMODE, SUM(line_count(O_ORDERPRIORITY, 'high')) AS HIGH_LINE_COUNT, SUM(line_count(O_ORDERPRIORITY, 'low')) AS LOW_LINE_COUNT FROM ORDERS, LINEITEM WHERE O_ORDERKEY = L_ORDERKEY AND q12conditions(L_SHIPMODE, L_COMMITDATE, L_RECEIPTDATE, L_SHIPDATE) = 1 GROUP BY L_SHIPMODE ORDER BY L_SHIPMODE");
+        // auto result1 = con.Query("SELECT      l_shipmode,      SUM(CASE 		WHEN o_orderpriority = '1-URGENT' 			OR o_orderpriority = '2-HIGH' 			THEN 1 		ELSE 0      END) AS high_line_count,      SUM(CASE 		WHEN o_orderpriority <> '1-URGENT' 			AND o_orderpriority <> '2-HIGH' 			THEN 1 		ELSE 0      END) AS low_line_count FROM      orders,      lineitem WHERE      o_orderkey = l_orderkey      AND l_shipmode IN ('MAIL', 'SHIP')      AND l_commitdate < l_receiptdate      AND l_shipdate < l_commitdate      AND l_receiptdate >= (date '1994-01-01')      AND l_receiptdate < (date '1995-01-01') GROUP BY      l_shipmode ORDER BY      l_shipmode");
+        
         // auto result1 = con.Query("select l_shipdate + 1 from lineitem");
         end = std::chrono::steady_clock::now();
         if(result1->HasError())
@@ -124,14 +122,13 @@ int main(int argc, char const *argv[])
         time1.push_back(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
         int count = 0;
         for(auto i=result1->begin();i!=result1->end();i.Next()) {
-            auto v = i.current_row.GetValue<duckdb::Value>(0);
-            std::cout << v << std::endl;
+            auto v = i.current_row.GetValue<duckdb::Value>(1);
+            std::cout<<v<<std::endl;
             count++;
-            if (count >= 1000)
-                break;
+            if(count >= 1000) break;
         }
     }
     std::cout << "Time 1: " << mean(time1) << " ms" << std::endl;
-
+    
     return 0;
 }

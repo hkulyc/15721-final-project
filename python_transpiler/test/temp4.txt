@@ -1,0 +1,20 @@
+Preparing environment...
+Running Query...
+Query 12 UDF time: 60716 ms
+Query 12 time: 53 ms
+L_SHIPMODE	HIGH_LINE_COUNT	LOW_LINE_COUNT	
+VARCHAR	HUGEINT	HUGEINT	
+[ Rows: 2]
+MAIL	6202	9324
+SHIP	6200	9262
+
+
+--------------------------------------------------------
+L_SHIPMODE	high_line_count	low_line_count	
+VARCHAR	HUGEINT	HUGEINT	
+[ Rows: 2]
+MAIL	6202	9324
+SHIP	6200	9262
+
+
+Query 12 do NOT match!

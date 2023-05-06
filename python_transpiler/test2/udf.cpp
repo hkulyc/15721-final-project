@@ -45,9 +45,12 @@ thread_local std::unique_ptr<duckdb::PreparedStatement> query9_prepare = trans_c
 // valid_mask and return_mask should not be null
 std::vector<bool> query1(const std::vector<duckdb::Value> &values0, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask)
 {
+  size_t input_size = valid_mask->size();
   std::vector<bool> res(values0.size());
   duckdb::Value const1("high");
   for(int i=0;i<values0.size();i++){
+    if (i >= input_size || valid_mask->at(i) == 0 || return_mask->at(i) == 1 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 1)){}
+    else
     res[i] = values0[i] == const1;
   }
   return res;
@@ -55,10 +58,13 @@ std::vector<bool> query1(const std::vector<duckdb::Value> &values0, std::vector<
 // valid_mask and return_mask should not be null
 std::vector<bool> query2(const std::vector<duckdb::Value> &values0, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask)
 {
+  size_t input_size = valid_mask->size();
   std::vector<bool> res(values0.size());
   duckdb::Value const1("1-URGENT");
   duckdb::Value const2("2-HIGH");
   for(int i=0;i<values0.size();i++){
+    if (i >= input_size || valid_mask->at(i) == 0 || return_mask->at(i) == 1 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 1)){}
+    else
     res[i] = (values0[i] == const1) || (values0[i] == const2);
   }
   return res;
@@ -66,9 +72,12 @@ std::vector<bool> query2(const std::vector<duckdb::Value> &values0, std::vector<
 // valid_mask and return_mask should not be null
 std::vector<bool> query3(const std::vector<duckdb::Value> &values0, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask)
 {
+  size_t input_size = valid_mask->size();
   std::vector<bool> res(values0.size());
   duckdb::Value const1("low");
   for(int i=0;i<values0.size();i++){
+    if (i >= input_size || valid_mask->at(i) == 0 || return_mask->at(i) == 1 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 1)){}
+    else
     res[i] = values0[i] == const1;
   }
   return res;
@@ -76,11 +85,14 @@ std::vector<bool> query3(const std::vector<duckdb::Value> &values0, std::vector<
 // valid_mask and return_mask should not be null
 std::vector<bool> query4(const std::vector<duckdb::Value> &values0, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask)
 {
+  size_t input_size = valid_mask->size();
   // prepare ps input
   std::vector<bool> res(values0.size());
   duckdb::Value const1("1-URGENT");
   duckdb::Value const2("2-HIGH");
   for(int i=0;i<values0.size();i++){
+    if (i >= input_size || valid_mask->at(i) == 0 || return_mask->at(i) == 1 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 1)){}
+    else
     res[i] = !(values0[i] == const1) && !(values0[i] == const2);
   }
   return res;

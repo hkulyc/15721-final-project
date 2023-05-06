@@ -85,14 +85,14 @@ CREATE TABLE LINEITEM ( L_ORDERKEY    INTEGER NOT NULL,\
                          L_SHIPINSTRUCT CHAR(25) NOT NULL,\
                          L_SHIPMODE     CHAR(10) NOT NULL,\
                          L_COMMENT      VARCHAR(44) NOT NULL);");
-    con->Query("INSERT INTO NATION (SELECT * FROM read_csv_auto('dataset/nation.tbl'))");
-    con->Query("INSERT INTO REGION (SELECT * FROM read_csv_auto('dataset/region.tbl'))");
-    con->Query("INSERT INTO PART (SELECT * FROM read_csv_auto('dataset/part.tbl'))");
-    con->Query("INSERT INTO SUPPLIER (SELECT * FROM read_csv_auto('dataset/supplier.tbl'))");
-    con->Query("INSERT INTO PARTSUPP (SELECT * FROM read_csv_auto('dataset/partsupp.tbl'))");
-    con->Query("INSERT INTO CUSTOMER (SELECT * FROM read_csv_auto('dataset/customer.tbl'))");
-    con->Query("INSERT INTO ORDERS (SELECT * FROM read_csv_auto('dataset/orders.tbl'))");
-    con->Query("INSERT INTO LINEITEM (SELECT * FROM read_csv_auto('dataset/lineitem.tbl'))");
+    con->Query("INSERT INTO NATION (SELECT * FROM read_csv_auto('dataset-s5/nation.tbl'))");
+    con->Query("INSERT INTO REGION (SELECT * FROM read_csv_auto('dataset-s5/region.tbl'))");
+    con->Query("INSERT INTO PART (SELECT * FROM read_csv_auto('dataset-s5/part.tbl'))");
+    con->Query("INSERT INTO SUPPLIER (SELECT * FROM read_csv_auto('dataset-s5/supplier.tbl'))");
+    con->Query("INSERT INTO PARTSUPP (SELECT * FROM read_csv_auto('dataset-s5/partsupp.tbl'))");
+    con->Query("INSERT INTO CUSTOMER (SELECT * FROM read_csv_auto('dataset-s5/customer.tbl'))");
+    con->Query("INSERT INTO ORDERS (SELECT * FROM read_csv_auto('dataset-s5/orders.tbl'))");
+    con->Query("INSERT INTO LINEITEM (SELECT * FROM read_csv_auto('dataset-s5/lineitem.tbl'))");
     con->CreateVectorizedFunction("line_count", {duckdb::LogicalType::VARCHAR, duckdb::LogicalType::VARCHAR}, duckdb::LogicalType::INTEGER, &line_count);
 con->CreateVectorizedFunction("q12conditions", {duckdb::LogicalType::VARCHAR, duckdb::LogicalType::DATE, duckdb::LogicalType::DATE, duckdb::LogicalType::DATE}, duckdb::LogicalType::INTEGER, &q12conditions);
 }
@@ -111,7 +111,12 @@ int main(int argc, char const *argv[])
     for(int i=0;i<EPOCH_NUM;i++){
         // start = std::clock();
         start = std::chrono::steady_clock::now();
-        auto result1 = con.Query("SELECT L_SHIPMODE, SUM(line_count(O_ORDERPRIORITY, 'high')) AS HIGH_LINE_COUNT, SUM(line_count(O_ORDERPRIORITY, 'low')) AS LOW_LINE_COUNT FROM ORDERS, LINEITEM WHERE O_ORDERKEY = L_ORDERKEY AND q12conditions(L_SHIPMODE, L_COMMITDATE, L_RECEIPTDATE, L_SHIPDATE) = 1 GROUP BY L_SHIPMODE ORDER BY L_SHIPMODE");
+        auto result1 = con.Query("SELECT L_SHIPMODE, SUM(line_count(O_ORDERPRIORITY, 'high')) AS HIGH_LINE_COUNT, SUM(line_count(O_ORDERPRIORITY, 'low')) AS LOW_LINE_COUNT FROM ORDERS, LINEITEM WHERE o_orderkey = l_orderkey\
+	and l_shipmode in ('MAIL', 'SHIP')\
+	and l_commitdate < l_receiptdate\
+	and l_shipdate < l_commitdate\
+	and l_receiptdate >= date '1994-01-01'\
+	and l_receiptdate < date '1994-01-01' + interval '1' year GROUP BY L_SHIPMODE ORDER BY L_SHIPMODE");
         // auto result1 = con.Query("SELECT      l_shipmode,      SUM(CASE 		WHEN o_orderpriority = '1-URGENT' 			OR o_orderpriority = '2-HIGH' 			THEN 1 		ELSE 0      END) AS high_line_count,      SUM(CASE 		WHEN o_orderpriority <> '1-URGENT' 			AND o_orderpriority <> '2-HIGH' 			THEN 1 		ELSE 0      END) AS low_line_count FROM      orders,      lineitem WHERE      o_orderkey = l_orderkey      AND l_shipmode IN ('MAIL', 'SHIP')      AND l_commitdate < l_receiptdate      AND l_shipdate < l_commitdate      AND l_receiptdate >= (date '1994-01-01')      AND l_receiptdate < (date '1995-01-01') GROUP BY      l_shipmode ORDER BY      l_shipmode");
         
         // auto result1 = con.Query("select l_shipdate + 1 from lineitem");

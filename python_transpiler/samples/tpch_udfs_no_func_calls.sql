@@ -65,17 +65,11 @@ begin
     if NOT (odate < thedate AND shipdate > thedate) then
         return 0;
     end if;
-    -- if(checkDate(thedate, odate, shipdate) = 0) then
-    --     return 0;
-    -- end if;
     stdate = cast(thedate as date);
     newdate = stdate+122;
     if (shipdate > newdate) then
         return 0;
     end if;
-    -- if(isShippedBefore(shipdate, 122, thedate) = 0) then
-    --     return 0;
-    -- end if;
     return 1;
 end $$
 LANGUAGE PLPGSQL;

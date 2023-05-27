@@ -2120,7 +2120,6 @@ public:
 //===----------------------------------------------------------------------===//
 
 
-
 //===----------------------------------------------------------------------===//
 //                         DuckDB
 //
@@ -22665,3 +22664,20 @@ public:
 };
 
 } // namespace duckdb
+
+
+
+//===----------------------------------------------------------------------===//
+//                         DuckDB
+//
+// duckdb/function/scalar/string/trim.hpp
+//
+//
+//===----------------------------------------------------------------------===//
+namespace duckdb{
+	template <bool LTRIM, bool RTRIM>
+	void BinaryTrimFunction(DataChunk &input, ExpressionState &state, Vector &result);
+	struct TrimFun {
+		static void RegisterFunction(BuiltinFunctions &set);
+	};
+}

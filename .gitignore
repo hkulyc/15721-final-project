@@ -16,7 +16,7 @@ main
 poc/dataset/lineitem.csv
 poc/poc
 udf_transpiler/env/
-test/
+test/dependencies/
 tests/
 poc/poc
 poc/Makefile

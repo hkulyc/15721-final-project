@@ -24,7 +24,7 @@ parse_dump.json
 poc/CMakeLists.txt
 !python_transpiler/test/
 python_transpiler/test/dataset/lineitem.csv
-python_transpiler/test/*.cpp
+# python_transpiler/test/*.cpp
 python_transpiler/test/test
 
 

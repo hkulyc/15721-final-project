@@ -346,15 +346,22 @@ void query5_compiled(duckdb::DataChunk &input, duckdb::Vector &res, std::vector<
   duckdb::DataChunk input1;
   duckdb::ExpressionState *tmp_state = (duckdb::ExpressionState *) malloc(sizeof(duckdb::ExpressionState));
   // duckdb::Builtin
-  std::vector<duckdb::LogicalType> types{duckdb::LogicalType::VARCHAR, duckdb::LogicalType::BIGINT};
+  std::vector<duckdb::LogicalType> types{duckdb::LogicalType::VARCHAR};
   input1.Initialize(*trans_con.context, types, input_size);
   input1.SetCardinality(input_size);
-  input1.ReferenceColumns(input, {0,2});
-  input1.Flatten();
-  input1.Print();
+  input1.ReferenceColumns(input, {0});
+  duckdb::DataChunk input1_tmp;
+  std::vector<duckdb::LogicalType> tmp_types{duckdb::LogicalType::BIGINT};
+  input1_tmp.Initialize(*trans_con.context, tmp_types, input_size);
+  input1_tmp.SetCardinality(input_size);
+  // input.Copy(input1_tmp, duckdb::SelectionVector(2,1), );
+  // input1_tmp.Print();
   for(int i=0;i<input1.size();i++){
-    input1.SetValue(1, i, input1.GetValue(1,i).template GetValue<int64_t>() + 1);
+    input1_tmp.SetValue(0, i, input.GetValue(2,i).template GetValue<int64_t>() + 1);
   }
+  input1_tmp.Print();
+  input1.Fuse(input1_tmp);
+  input1.Print();
   input.Print();
   duckdb::SubstringFunctionASCII(input1, (duckdb::ExpressionState &)(*tmp_state), res);
 
@@ -396,6 +403,25 @@ std::vector<duckdb::Value> query5(const std::vector<duckdb::Value> &values0, con
     }
     return ret;
 }
+
+void query6_compiled(duckdb::DataChunk &input, duckdb::Vector &res, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){
+  // execute and fetch result
+  size_t input_size = valid_mask->size();
+  // duckdb::Vector &data0 = input.data[0];
+  // duckdb::Vector &data1 = input.data[1];
+  for(size_t i=0;i<input_size;i++){
+    // input.GetValue(0,i).Print();
+    if(valid_mask->at(i) == 0 || return_mask->at(i) == 1 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 1)){
+      res.SetValue(i, (int64_t) 0);
+    }
+    else{
+      res.SetValue(i, strpos(input.GetValue(0,i), input.GetValue(1,i)) != 0);
+    }
+  }
+  // res.Print();
+  
+}
+
 // valid_mask and return_mask should not be null
 std::vector<duckdb::Value> query6(const std::vector<duckdb::Value> &values0, const std::vector<duckdb::Value> &values1, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){
     // prepare ps input
@@ -432,6 +458,20 @@ std::vector<duckdb::Value> query6(const std::vector<duckdb::Value> &values0, con
     }
     return ret;
 }
+
+void query7_compiled(duckdb::Vector &res, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){
+  // execute and fetch result
+  size_t input_size = valid_mask->size();
+  for(size_t i=0;i<input_size;i++){
+    if(valid_mask->at(i) == 0 || return_mask->at(i) == 1 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 1)){
+      res.SetValue(i, (int64_t) 0);
+    }
+    else{
+      res.SetValue(i, false);
+    }
+  }
+}
+
 // valid_mask and return_mask should not be null
 std::vector<duckdb::Value> query7(std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){
     size_t input_size = valid_mask->size();
@@ -449,6 +489,8 @@ std::vector<duckdb::Value> query7(std::vector<bool> *valid_mask, std::vector<boo
     }
     return ret;
 }
+
+// query 8 compiled is query 2
 // valid_mask and return_mask should not be null
 std::vector<duckdb::Value> query8(const std::vector<duckdb::Value> &values0, const std::vector<duckdb::Value> &values1, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){
     // prepare ps input
@@ -485,6 +527,20 @@ std::vector<duckdb::Value> query8(const std::vector<duckdb::Value> &values0, con
     }
     return ret;
 }
+
+void query9_compiled(duckdb::Vector &res, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){
+  // execute and fetch result
+  size_t input_size = valid_mask->size();
+  for(size_t i=0;i<input_size;i++){
+    if(valid_mask->at(i) == 0 || return_mask->at(i) == 1 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 1)){
+      res.SetValue(i, (int64_t) 0);
+    }
+    else{
+      res.SetValue(i, true);
+    }
+  }
+}
+
 // valid_mask and return_mask should not be null
 std::vector<duckdb::Value> query9(std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){
     size_t input_size = valid_mask->size();
@@ -632,7 +688,7 @@ while (true) {
   // res1.Print();
   // input3.Print();
   query4_compiled(input3, part1.data[0], &active2, &returns1, &loop_active3, &continues4);
-  part1.Print();
+  // part1.Print();
 std::vector<duckdb::Value> tempvar11 = query4(list, pos, &active2, &returns1, &loop_active3, &continues4);
 for(size_t tempvar10 = 0 ; tempvar10 < args.size() ; tempvar10++) {
   if(active2[tempvar10] && !returns1[tempvar10]&& loop_active3[tempvar10] && !continues4[tempvar10]) {
@@ -648,6 +704,16 @@ for(size_t tempvar12 = 0 ; tempvar12 < args.size() ; tempvar12++) {
   }
 }
 /** IF BLOCK **/
+duckdb::DataChunk input4;
+std::vector<duckdb::LogicalType> input4_type{duckdb::LogicalType::VARCHAR};
+input4.Initialize(*trans_con.context, input4_type, args.size());
+input4.SetCardinality(args.size());
+input4.ReferenceColumns(res1, {0,2});
+duckdb::DataChunk res3;
+std::vector<duckdb::LogicalType> types3{duckdb::LogicalType::BOOLEAN};
+  res3.Initialize(*trans_con.context, types3, args.size());
+  res3.SetCardinality(args.size());
+  query6_compiled(input4, res3.data[0], &active2, &returns1, &loop_active3, &continues4);
 std::vector<duckdb::Value> tempvar17 = query6(list, part, &active2, &returns1, &loop_active3, &continues4);
 std::vector<bool> active5 = active2;
 for (size_t tempvar16 = 0; tempvar16 < tempvar17.size() ; tempvar16++) {

@@ -110,7 +110,7 @@ int main(int argc, char const *argv[])
     for(int i=0;i<EPOCH_NUM;i++){
         // start = std::clock();
         start = std::chrono::steady_clock::now();
-        auto result1 = con.Query("SELECT isListDistinct(col0, ',') from (values ('1,2,3,4'), ('1,11,2'))");
+        auto result1 = con.Query("SELECT isListDistinct(col0, ',') from (values ('1,2,3,4,5,2'), ('1,143,2'), ('1,,'))");
         // auto result1 = con.Query("select l_shipdate + 1 from lineitem");
         end = std::chrono::steady_clock::now();
         if(result1->HasError())

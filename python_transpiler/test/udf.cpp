@@ -71,14 +71,14 @@ void query1_compiled(duckdb::DataChunk &input, duckdb::Vector &res, std::vector<
   duckdb::UnaryTrimFunction<true, true>(input, (duckdb::ExpressionState &)(*tmp_state), input1.data[0]);
   // std::cout<<input1.data[0].GetValue(0).ToString()<<std::endl;
   // std::cout<<input1.data[1].GetValue(0).ToString()<<std::endl;
-  input.Print();
-  input1.Print();
+  // input.Print();
+  // input1.Print();
   // res.Resize(0, 2);
   // res.Resize(0,2);
   duckdb::ConcatFunction(input1, (duckdb::ExpressionState &)(*tmp_state), res);
   // std::cout<<res.Print()<<std::endl;
   // res.Resize(0,2);
-  res.Print();
+  // res.Print();
   // if(res->HasError()){
   //     std::cout<<query1_prepare->query<<std::endl;
   //     throw std::runtime_error("Error when waiting for query result.");
@@ -148,11 +148,26 @@ int64_t strpos(const duckdb::Value &haystack, const duckdb::Value &needle){
 	// 	}
 	// 	return string_position;
   if(!haystack.IsNull() && !needle.IsNull()){
-    std::cout<<"ads\n";
-    return haystack.ToString().find(needle.ToString());
+    // std::cout<<"ads\n";
+    return haystack.ToString().find(needle.ToString())+1;
   }
   else
     return 0;
+}
+
+// struct LeftRightUnicode {
+// 		template <class TA, class TR>
+// 		static inline TR Operation(TA input) {
+// 			return LengthFun::Length<TA, TR>(input);
+// 		}
+
+// 		static string_t Substring(Vector &result, string_t input, int64_t offset, int64_t length) {
+// 			return SubstringFun::SubstringUnicode(result, input, offset, length);
+// 		}
+// };
+
+int64_t length(const duckdb::string_t &str){
+
 }
 
 void query2_compiled(duckdb::DataChunk &input, duckdb::Vector &res, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){
@@ -169,7 +184,7 @@ void query2_compiled(duckdb::DataChunk &input, duckdb::Vector &res, std::vector<
       res.SetValue(i, strpos(input.GetValue(0,i), input.GetValue(1,i)));
     }
   }
-  res.Print();
+  // res.Print();
   
 }
 
@@ -209,6 +224,27 @@ std::vector<duckdb::Value> query2(const std::vector<duckdb::Value> &values0, con
     }
     return ret;
 }
+
+void query3_compiled(duckdb::DataChunk &input, duckdb::Vector &res, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){
+  // execute and fetch result
+  size_t input_size = valid_mask->size();
+  // duckdb::Vector &data0 = input.data[0];
+  // duckdb::Vector &data1 = input.data[1];
+  duckdb::Value const1(0);
+  for(size_t i=0;i<input_size;i++){
+    // input.GetValue(0,i).Print();
+    if(valid_mask->at(i) == 0 || return_mask->at(i) == 1 || (loop_mask != NULL && loop_mask->at(i) == 0) || (continue_mask != NULL && continue_mask->at(i) == 1)){
+      // res.SetValue(i, (int64_t) 0);
+    }
+    else{
+      // input.Print();
+      res.SetValue(i, input.GetValue(0,i) > const1);
+    }
+  }
+  // res.Print();
+  
+}
+
 // valid_mask and return_mask should not be null
 std::vector<duckdb::Value> query3(const std::vector<duckdb::Value> &values0, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){
     // prepare ps input
@@ -238,6 +274,35 @@ std::vector<duckdb::Value> query3(const std::vector<duckdb::Value> &values0, std
     }
     return ret;
 }
+
+void query4_compiled(duckdb::DataChunk &input, duckdb::Vector &res, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){
+  // execute and fetch result
+  size_t input_size = valid_mask->size();
+  // std::cout<<input_size<<std::endl;
+  // auto res = query1_prepare->Execute(input);
+  // duckdb::Vector res1(duckdb::LogicalType::VARCHAR, input_size);
+  duckdb::DataChunk input1;
+  duckdb::ExpressionState *tmp_state = (duckdb::ExpressionState *) malloc(sizeof(duckdb::ExpressionState));
+  // duckdb::Builtin
+  std::vector<duckdb::LogicalType> types{duckdb::LogicalType::VARCHAR};
+  
+  input1.Initialize(*trans_con.context, types, input_size);
+  input1.SetCardinality(input_size);
+  // duckdb::DataChunk input1_tmp;
+  // input1_tmp.Initialize(*trans_con.context, types, input_size);
+  // input1_tmp.SetCardinality(input_size);
+  // std::vector<duckdb::column_t> input1_tmp_select{1};
+  // input1_tmp.ReferenceColumns(input, input1_tmp_select);
+
+  // input1.Fuse(input1_tmp);
+  duckdb::SubstringFunctionASCII(input, (duckdb::ExpressionState &)(*tmp_state), input1.data[0]);
+  // input.Print();
+  // input1.Print();
+  duckdb::UnaryTrimFunction<true, true>(input1, (duckdb::ExpressionState &)(*tmp_state), res);
+  // duckdb::ConcatFunction(input1, (duckdb::ExpressionState &)(*tmp_state), res);
+
+}
+
 // valid_mask and return_mask should not be null
 std::vector<duckdb::Value> query4(const std::vector<duckdb::Value> &values0, const std::vector<duckdb::Value> &values1, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){
     // prepare ps input
@@ -274,6 +339,27 @@ std::vector<duckdb::Value> query4(const std::vector<duckdb::Value> &values0, con
     }
     return ret;
 }
+
+void query5_compiled(duckdb::DataChunk &input, duckdb::Vector &res, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){
+  // execute and fetch result
+  size_t input_size = valid_mask->size();
+  duckdb::DataChunk input1;
+  duckdb::ExpressionState *tmp_state = (duckdb::ExpressionState *) malloc(sizeof(duckdb::ExpressionState));
+  // duckdb::Builtin
+  std::vector<duckdb::LogicalType> types{duckdb::LogicalType::VARCHAR, duckdb::LogicalType::BIGINT};
+  input1.Initialize(*trans_con.context, types, input_size);
+  input1.SetCardinality(input_size);
+  input1.ReferenceColumns(input, {0,2});
+  input1.Flatten();
+  input1.Print();
+  for(int i=0;i<input1.size();i++){
+    input1.SetValue(1, i, input1.GetValue(1,i).template GetValue<int64_t>() + 1);
+  }
+  input.Print();
+  duckdb::SubstringFunctionASCII(input1, (duckdb::ExpressionState &)(*tmp_state), res);
+
+}
+
 // valid_mask and return_mask should not be null
 std::vector<duckdb::Value> query5(const std::vector<duckdb::Value> &values0, const std::vector<duckdb::Value> &values1, std::vector<bool> *valid_mask, std::vector<bool> *return_mask, std::vector<bool> *loop_mask, std::vector<bool> *continue_mask){
     // prepare ps input
@@ -416,8 +502,38 @@ std::vector<duckdb::Value> query9(std::vector<bool> *valid_mask, std::vector<boo
     }
     return ret;
 }
+
+void prepare_input3(duckdb::DataChunk &args, duckdb::DataChunk &ret){
+  // args.Print();
+  // args[0] is list, args[1] is delim, arg[2] is pos
+  // ret is uninitiliazed
+  std::vector<duckdb::LogicalType> pos_type4{duckdb::LogicalType::VARCHAR};
+  ret.Initialize(*trans_con.context, pos_type4, args.size());
+  std::vector<duckdb::column_t> input3_tmp_select{0};
+  ret.ReferenceColumns(args, input3_tmp_select);
+  // for(int i=0;i<args.size();i++){
+  //   ret.SetValue(1, i, 0);
+  // }
+  duckdb::DataChunk const0;
+  std::vector<duckdb::LogicalType> type2{duckdb::LogicalType::BIGINT};
+  const0.Initialize(*trans_con.context, type2, args.size());
+  const0.SetCardinality(args.size());
+  for(int i=0;i<const0.size();i++){
+    const0.SetValue(0, i, duckdb::Value(1));
+  }
+  ret.Fuse(const0);
+  duckdb::DataChunk ret_tmp;
+  std::vector<duckdb::LogicalType> type{duckdb::LogicalType::BIGINT};
+  ret_tmp.Initialize(*trans_con.context, type, args.size());
+  ret_tmp.SetCardinality(args.size());
+  std::vector<duckdb::column_t> tmp_select{2};
+  ret_tmp.ReferenceColumns(args, tmp_select);
+  ret.Fuse(ret_tmp);
+  // ret.Print();
+}
+
 void isListDistinct(duckdb::DataChunk &args, duckdb::ExpressionState &state, duckdb::Vector &result) {
-  result.Print();
+  // result.Print();
   std::vector<bool> returns1(args.size());
   std::vector<duckdb::Value> return_values(args.size());
   for(size_t i = 0; i < args.size() ; i++) {
@@ -450,7 +566,7 @@ std::vector<duckdb::Value> pos(args.size());
   args.Copy(res1);
   res1.SetCardinality(args.size());
   query1_compiled(args, res1.data[0], &active2, &returns1, NULL, NULL);
-  res1.Print();
+  // res1.Print();
 std::vector<duckdb::Value> tempvar4 = query1(list, delim, &active2, &returns1, NULL, NULL);
 for(size_t tempvar3 = 0 ; tempvar3 < args.size() ; tempvar3++) {
   if(active2[tempvar3] && !returns1[tempvar3]) {
@@ -463,7 +579,7 @@ for(size_t tempvar3 = 0 ; tempvar3 < args.size() ; tempvar3++) {
   pos_c.Initialize(*trans_con.context, pos_type, args.size());
   res1.Fuse(pos_c);
 query2_compiled(res1, res1.data[2], &active2, &returns1, NULL, NULL);
-res1.Print();
+// res1.Print();
 std::vector<duckdb::Value> tempvar6 = query2(list, delim, &active2, &returns1, NULL, NULL);
 for(size_t tempvar5 = 0 ; tempvar5 < args.size() ; tempvar5++) {
   if(active2[tempvar5] && !returns1[tempvar5]) {
@@ -477,6 +593,19 @@ while (true) {
   for(size_t tempvar7 = 0 ; tempvar7 < args.size() ; tempvar7++) {
     continues4[tempvar7] = false;
   }
+  duckdb::DataChunk input2;
+  std::vector<duckdb::LogicalType> pos_type2{duckdb::LogicalType::BIGINT};
+  input2.Initialize(*trans_con.context, pos_type2, args.size());
+  // input2.SetCardinality(args.size());
+  std::vector<duckdb::column_t> input2_tmp_select{2};
+  input2.ReferenceColumns(res1, input2_tmp_select);
+  duckdb::DataChunk res2;
+  std::vector<duckdb::LogicalType> pos_type3{duckdb::LogicalType::BOOLEAN};
+  res2.Initialize(*trans_con.context, pos_type3, args.size());
+  res2.SetCardinality(args.size());
+  query3_compiled(input2, res2.data[0], &active2, &returns1, &loop_active3, &continues4);
+  // res1.Print();
+  // res2.Print();
   std::vector<duckdb::Value> tempvar9 = query3(pos, &active2, &returns1, &loop_active3, &continues4);
   bool tempvar8 = false;
   for(size_t tempvar7 = 0 ; tempvar7 < args.size() ; tempvar7++) {
@@ -494,6 +623,16 @@ while (true) {
   }
   
   /** ASSIGN part **/
+  duckdb::DataChunk input3;
+  prepare_input3(res1, input3);
+  duckdb::DataChunk part1;
+  std::vector<duckdb::LogicalType> part_type{duckdb::LogicalType::VARCHAR};
+  part1.Initialize(*trans_con.context, part_type, args.size());
+  part1.SetCardinality(args.size());
+  // res1.Print();
+  // input3.Print();
+  query4_compiled(input3, part1.data[0], &active2, &returns1, &loop_active3, &continues4);
+  part1.Print();
 std::vector<duckdb::Value> tempvar11 = query4(list, pos, &active2, &returns1, &loop_active3, &continues4);
 for(size_t tempvar10 = 0 ; tempvar10 < args.size() ; tempvar10++) {
   if(active2[tempvar10] && !returns1[tempvar10]&& loop_active3[tempvar10] && !continues4[tempvar10]) {
@@ -501,6 +640,7 @@ for(size_t tempvar10 = 0 ; tempvar10 < args.size() ; tempvar10++) {
   }
 }
 /** ASSIGN list **/
+query5_compiled(res1, res1.data[0], &active2, &returns1, &loop_active3, &continues4);
 std::vector<duckdb::Value> tempvar13 = query5(list, pos, &active2, &returns1, &loop_active3, &continues4);
 for(size_t tempvar12 = 0 ; tempvar12 < args.size() ; tempvar12++) {
   if(active2[tempvar12] && !returns1[tempvar12]&& loop_active3[tempvar12] && !continues4[tempvar12]) {
